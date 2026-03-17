@@ -1,3 +1,4 @@
-# Ghostline daily lead generation — runs at 6:00 AM local time
+# Ghostline daily lead generation — runs at 6:00 AM and 6:00 PM local time
 # Install with: crontab cron.txt (or merge into existing crontab)
 0 6 * * * /Users/fayzanmalik/Documents/GitHub/ghostline/run.sh >> /Users/fayzanmalik/Documents/GitHub/ghostline/logs/cron.log 2>&1
+0 18 * * * /Users/fayzanmalik/Documents/GitHub/ghostline/run.sh >> /Users/fayzanmalik/Documents/GitHub/ghostline/logs/cron.log 2>&1
