@@ -4,6 +4,8 @@ Automated GitHub lead generation tool for Chox. Discovers developers actively bu
 
 ## Quick Start
 
+Requires **Python 3.10+**.
+
 1. **Clone the repo**
 
    ```bash

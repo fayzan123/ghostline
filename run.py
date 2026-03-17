@@ -45,6 +45,8 @@ def main():
         "run_duration_seconds": 0.0,
     }
 
+    client = None
+
     try:
         # ==================================================================
         # STEP 1: INITIALIZE
@@ -82,6 +84,10 @@ def main():
         qualified_repos = qualify_repos(raw_repos, client)
         stats["repos_qualified"] = len(qualified_repos)
         logger.info("Qualified %d repositories.", len(qualified_repos))
+
+        if len(qualified_repos) > config.MAX_LEADS_PER_RUN:
+            logger.info("Capping qualified repos from %d to %d", len(qualified_repos), config.MAX_LEADS_PER_RUN)
+            qualified_repos = qualified_repos[:config.MAX_LEADS_PER_RUN]
 
         # ==================================================================
         # STEP 4: EXTRACT EMAILS & ENRICH PROFILES
@@ -145,17 +151,14 @@ def main():
 
     except KeyboardInterrupt:
         logger.info("Run interrupted by user.")
-        stats["api_calls_used"] = client.api_call_count if "client" in dir() else 0
+        stats["api_calls_used"] = client.api_call_count if client else 0
         stats["run_duration_seconds"] = time.time() - start_time
         print_report(stats)
         sys.exit(1)
 
     except Exception:
         logger.error("Run failed with unhandled exception:\n%s", traceback.format_exc())
-        try:
-            stats["api_calls_used"] = client.api_call_count  # noqa: F821
-        except Exception:
-            pass
+        stats["api_calls_used"] = client.api_call_count if client else 0
         stats["run_duration_seconds"] = time.time() - start_time
         print_report(stats)
         sys.exit(1)

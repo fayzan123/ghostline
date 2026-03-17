@@ -2,7 +2,12 @@
 report.py — Run summary reporting for the Ghostline lead generation tool.
 """
 
+import os
+
 from config import RUN_ID
+
+_LOG_DIR = os.path.dirname(os.path.abspath(__file__))
+_RUNS_LOG = os.path.join(_LOG_DIR, "runs.log")
 
 
 def print_report(stats: dict) -> None:
@@ -39,5 +44,5 @@ def print_report(stats: dict) -> None:
     print(report)
 
     # Append to runs.log
-    with open("runs.log", "a") as f:
+    with open(_RUNS_LOG, "a") as f:
         f.write("\n" + report + "\n")
