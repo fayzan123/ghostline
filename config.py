@@ -42,14 +42,14 @@ GITHUB_HEADERS = {
 
 PAGES_PER_QUERY = 3
 PER_PAGE = 100
-MAX_LEADS_PER_RUN = 100
+MAX_LEADS_PER_RUN = 500
 
 # ---------------------------------------------------------------------------
 # Scoring thresholds
 # ---------------------------------------------------------------------------
 
-TIER1_THRESHOLD = 60
-TIER2_THRESHOLD = 30
+TIER1_THRESHOLD = 20
+TIER2_THRESHOLD = 5
 
 # ---------------------------------------------------------------------------
 # Rate limit sleep intervals (seconds)
