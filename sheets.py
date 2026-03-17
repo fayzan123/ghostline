@@ -89,9 +89,7 @@ def _ensure_headers(worksheet: gspread.Worksheet) -> None:
     if not row1:
         logger.info("Sheet is empty — writing header row.")
         _retry_write(
-            lambda: worksheet.append_row(
-                GOOGLE_SHEET_HEADERS, value_input_option="RAW"
-            )
+            lambda: worksheet.update('A1', [GOOGLE_SHEET_HEADERS], value_input_option="RAW")
         )
     elif row1 != GOOGLE_SHEET_HEADERS:
         logger.warning(
@@ -219,7 +217,7 @@ def _retry_write(write_fn, max_retries: int = _SHEETS_MAX_RETRIES) -> None:
             raise
 
     logger.error("Sheets API write failed after %d retries.", max_retries)
-    raise APIError({"code": 429, "message": "Quota exceeded after max retries"})
+    raise RuntimeError(f"Google Sheets API write failed after {max_retries} retries (quota exceeded).")
 
 
 if __name__ == "__main__":

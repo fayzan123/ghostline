@@ -24,6 +24,12 @@ class GitHubClient:
         self.headers = dict(GITHUB_HEADERS)
         self.api_call_count = 0
 
+        if not self.headers.get("Authorization") or self.headers["Authorization"] == "Bearer ":
+            raise RuntimeError(
+                "GITHUB_TOKEN is not set. Add it to your .env file. "
+                "Generate one at https://github.com/settings/tokens (no scopes needed)."
+            )
+
         # Verify authentication on init
         rate_data = self.check_rate_limit()
         if not rate_data:
@@ -55,12 +61,15 @@ class GitHubClient:
             Parsed JSON response dict with 'items' and 'total_count' keys.
             Returns empty dict on error.
         """
-        url = (
-            f"{GITHUB_API_BASE}/search/repositories"
-            f"?q={query}&sort=updated&order=desc&per_page=100&page={page}"
-        )
+        url = f"{GITHUB_API_BASE}/search/repositories"
         try:
-            response = requests.get(url, headers=self.headers, timeout=30)
+            response = requests.get(url, headers=self.headers, timeout=30, params={
+                "q": query,
+                "sort": "updated",
+                "order": "desc",
+                "per_page": 100,
+                "page": page,
+            })
             result = self._handle_response(response, "search")
         except requests.RequestException as exc:
             logger.warning("search_repos request failed: %s", exc)
@@ -85,9 +94,12 @@ class GitHubClient:
             Parsed JSON response dict with 'items' and 'total_count' keys.
             Returns empty dict on error.
         """
-        url = f"{GITHUB_API_BASE}/search/code?q={query}&per_page=1"
+        url = f"{GITHUB_API_BASE}/search/code"
         try:
-            response = requests.get(url, headers=self.headers, timeout=30)
+            response = requests.get(url, headers=self.headers, timeout=30, params={
+                "q": query,
+                "per_page": 1,
+            })
             result = self._handle_response(response, "code_search")
         except requests.RequestException as exc:
             logger.warning("search_code request failed: %s", exc)

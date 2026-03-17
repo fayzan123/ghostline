@@ -238,7 +238,6 @@ def _build_lead_data(lead: Lead) -> dict:
     # Estimate import tier counts from frameworks_detected
     tier_a = 0
     tier_b = 0
-    tier_c = 0
 
     if "langgraph" in frameworks:
         # LangGraph implies tool use (tier_a) + state graph (tier_b)
@@ -247,6 +246,9 @@ def _build_lead_data(lead: Lead) -> dict:
     if "langchain" in frameworks:
         # LangChain implies at least basic tool use
         tier_a += 1
+
+    # Tier C: count risk APIs detected
+    tier_c = len(risk_apis)
 
     # Calculate production keyword score from repo description
     production_keyword_score = 0

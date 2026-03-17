@@ -9,7 +9,7 @@ from collections import Counter
 
 from github_client import GitHubClient
 from models import Lead
-from config import INVALID_EMAIL_PATTERNS, EMAIL_REGEX, RUN_ID
+from config import INVALID_EMAIL_PATTERNS, EMAIL_REGEX, RUN_ID, IMPORT_TO_CATEGORY
 
 logger = logging.getLogger(__name__)
 
@@ -92,37 +92,39 @@ def _process_user(username: str, repo: dict, client: GitHubClient) -> Lead | Non
     if profile_email and is_valid_email(profile_email):
         candidate_emails[profile_email] = "profile"
 
-    # --- Method 2: Commit metadata from best repo ---
-    repo_full_name = repo.get("full_name", "")
-    if "/" in repo_full_name:
-        owner_name, repo_name = repo_full_name.split("/", 1)
-    else:
-        owner_name = username
-        repo_name = repo.get("name", "")
+    # --- Method 2: Commit metadata from best repo (skip if profile email found) ---
+    if not candidate_emails:
+        repo_full_name = repo.get("full_name", "")
+        if "/" in repo_full_name:
+            owner_name, repo_name = repo_full_name.split("/", 1)
+        else:
+            owner_name = username
+            repo_name = repo.get("name", "")
 
-    if repo_name:
-        commits = client.get_commits(owner_name, repo_name, username)
-        for commit_obj in commits:
-            commit_data = commit_obj.get("commit", {})
-            for field_key in ("author", "committer"):
-                email = commit_data.get(field_key, {}).get("email")
+        if repo_name:
+            commits = client.get_commits(owner_name, repo_name, username)
+            for commit_obj in commits:
+                commit_data = commit_obj.get("commit", {})
+                for field_key in ("author", "committer"):
+                    email = commit_data.get(field_key, {}).get("email")
+                    if email and is_valid_email(email):
+                        commit_email_counter[email] += 1
+                        if email not in candidate_emails:
+                            candidate_emails[email] = "commits"
+
+    # --- Method 3: User public events (skip if we already have a candidate) ---
+    if not candidate_emails:
+        events = client.get_user_events(username)
+        for event in events:
+            if event.get("type") != "PushEvent":
+                continue
+            payload_commits = event.get("payload", {}).get("commits", [])
+            for pc in payload_commits:
+                email = pc.get("author", {}).get("email")
                 if email and is_valid_email(email):
                     commit_email_counter[email] += 1
                     if email not in candidate_emails:
-                        candidate_emails[email] = "commits"
-
-    # --- Method 3: User public events ---
-    events = client.get_user_events(username)
-    for event in events:
-        if event.get("type") != "PushEvent":
-            continue
-        payload_commits = event.get("payload", {}).get("commits", [])
-        for pc in payload_commits:
-            email = pc.get("author", {}).get("email")
-            if email and is_valid_email(email):
-                commit_email_counter[email] += 1
-                if email not in candidate_emails:
-                    candidate_emails[email] = "events"
+                        candidate_emails[email] = "events"
 
     # --- Method 4: Bio regex ---
     bio = user_profile.get("bio") or ""
@@ -154,6 +156,12 @@ def _process_user(username: str, repo: dict, client: GitHubClient) -> Lead | Non
     if "langgraph" in searchable:
         frameworks.append("langgraph")
 
+    # Detect risk APIs from repo metadata
+    risk_apis = []
+    for api_key in IMPORT_TO_CATEGORY:
+        if api_key.lower() in searchable:
+            risk_apis.append(api_key)
+
     return Lead(
         github_username=username,
         email=best_email,
@@ -172,6 +180,7 @@ def _process_user(username: str, repo: dict, client: GitHubClient) -> Lead | Non
         repo_stars=repo.get("stargazers_count", 0) or 0,
         repo_language=repo.get("language") or "",
         frameworks_detected=", ".join(frameworks),
+        risk_apis_detected=", ".join(risk_apis),
         run_id=RUN_ID,
     )
 

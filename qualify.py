@@ -10,6 +10,8 @@ from config import TUTORIAL_ORG_BLOCKLIST, REPO_NAME_BLOCKLIST, DESCRIPTION_BLOC
 
 logger = logging.getLogger(__name__)
 
+_TUTORIAL_ORGS_LOWER = {org.lower() for org in TUTORIAL_ORG_BLOCKLIST}
+
 
 def qualify_repos(repos: list[dict], client: GitHubClient) -> list[dict]:
     """
@@ -50,7 +52,7 @@ def qualify_repos(repos: list[dict], client: GitHubClient) -> list[dict]:
 
         # Filter 2: Owner not in tutorial org blocklist
         owner_login = repo.get("owner", {}).get("login", "")
-        if owner_login in TUTORIAL_ORG_BLOCKLIST:
+        if owner_login.lower() in _TUTORIAL_ORGS_LOWER:
             filtered_counts["blocklisted_org"] += 1
             continue
 
