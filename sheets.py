@@ -2,9 +2,13 @@
 sheets.py — Google Sheets integration for the Ghostline lead generation tool.
 """
 
+import logging
+
 import gspread
 from models import Lead
 from config import SERVICE_ACCOUNT_FILE, SPREADSHEET_ID, GOOGLE_SHEET_HEADERS
+
+logger = logging.getLogger(__name__)
 
 
 def connect_to_sheet() -> tuple[gspread.Spreadsheet, gspread.Worksheet]:
@@ -21,7 +25,17 @@ def connect_to_sheet() -> tuple[gspread.Spreadsheet, gspread.Worksheet]:
         FileNotFoundError: If SERVICE_ACCOUNT_FILE does not exist.
         gspread.exceptions.SpreadsheetNotFound: If SPREADSHEET_ID is wrong.
     """
-    pass
+    gc = gspread.service_account(filename=SERVICE_ACCOUNT_FILE)
+    sheet = gc.open_by_key(SPREADSHEET_ID)
+    worksheet = sheet.sheet1
+
+    logger.info(
+        "Connected to Google Sheet: '%s' (id=%s)",
+        sheet.title,
+        SPREADSHEET_ID,
+    )
+
+    return sheet, worksheet
 
 
 def load_existing_usernames(worksheet: gspread.Worksheet) -> set:
@@ -37,7 +51,16 @@ def load_existing_usernames(worksheet: gspread.Worksheet) -> set:
     Returns:
         Set of github_username strings already in the sheet. Excludes header.
     """
-    pass
+    values = worksheet.col_values(1)  # Column A = github_username
+
+    # Strip header row if present
+    if values and values[0] == "github_username":
+        values = values[1:]
+
+    existing = set(values)
+    logger.info("Loaded %d existing usernames from sheet.", len(existing))
+
+    return existing
 
 
 def append_leads(worksheet: gspread.Worksheet, leads: list[Lead], existing_users: set) -> int:
@@ -57,4 +80,29 @@ def append_leads(worksheet: gspread.Worksheet, leads: list[Lead], existing_users
     Returns:
         Count of new leads successfully appended.
     """
-    pass
+    rows = []
+    seen_in_batch = set()
+
+    for lead in leads:
+        username = lead.github_username
+
+        # Skip if already in the sheet
+        if username in existing_users:
+            logger.debug("Skipping %s — already in sheet.", username)
+            continue
+
+        # Skip if duplicate within this batch
+        if username in seen_in_batch:
+            logger.debug("Skipping %s — duplicate in current batch.", username)
+            continue
+
+        seen_in_batch.add(username)
+        rows.append(lead.to_row())
+
+    if rows:
+        worksheet.append_rows(rows, value_input_option="USER_ENTERED")
+        logger.info("Appended %d new leads to Google Sheet.", len(rows))
+    else:
+        logger.info("No new leads to append.")
+
+    return len(rows)

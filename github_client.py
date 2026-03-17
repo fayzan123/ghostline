@@ -3,6 +3,7 @@ github_client.py — GitHub API client with rate limit handling for the
 Ghostline lead generation tool.
 """
 
+import logging
 import time
 import requests
 from config import (
@@ -14,11 +15,29 @@ from config import (
     CORE_BUDGET_ABORT_THRESHOLD,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class GitHubClient:
     def __init__(self):
         """Initialize with headers from config. Verify auth via /rate_limit on first use."""
-        pass
+        self.headers = dict(GITHUB_HEADERS)
+        self.api_call_count = 0
+
+        # Verify authentication on init
+        rate_data = self.check_rate_limit()
+        if not rate_data:
+            raise RuntimeError(
+                "Failed to authenticate with GitHub API. "
+                "Check that GITHUB_TOKEN is set and valid."
+            )
+
+        core = rate_data.get("resources", {}).get("core", {})
+        logger.info(
+            "GitHub API authenticated. Core rate limit: %s/%s remaining.",
+            core.get("remaining", "?"),
+            core.get("limit", "?"),
+        )
 
     def search_repos(self, query: str, page: int = 1) -> dict:
         """
@@ -36,7 +55,20 @@ class GitHubClient:
             Parsed JSON response dict with 'items' and 'total_count' keys.
             Returns empty dict on error.
         """
-        pass
+        url = (
+            f"{GITHUB_API_BASE}/search/repositories"
+            f"?q={query}&sort=updated&order=desc&per_page=100&page={page}"
+        )
+        try:
+            response = requests.get(url, headers=self.headers, timeout=30)
+            result = self._handle_response(response, "search")
+        except requests.RequestException as exc:
+            logger.warning("search_repos request failed: %s", exc)
+            result = {}
+        finally:
+            time.sleep(RATE_LIMIT_SLEEP_SEARCH)
+
+        return result if isinstance(result, dict) else {}
 
     def search_code(self, query: str) -> dict:
         """
@@ -53,7 +85,17 @@ class GitHubClient:
             Parsed JSON response dict with 'items' and 'total_count' keys.
             Returns empty dict on error.
         """
-        pass
+        url = f"{GITHUB_API_BASE}/search/code?q={query}&per_page=1"
+        try:
+            response = requests.get(url, headers=self.headers, timeout=30)
+            result = self._handle_response(response, "code_search")
+        except requests.RequestException as exc:
+            logger.warning("search_code request failed: %s", exc)
+            result = {}
+        finally:
+            time.sleep(RATE_LIMIT_SLEEP_CODE_SEARCH)
+
+        return result if isinstance(result, dict) else {}
 
     def get_user(self, username: str) -> dict:
         """
@@ -69,7 +111,17 @@ class GitHubClient:
         Returns:
             Parsed JSON user profile dict. Returns empty dict if user not found.
         """
-        pass
+        url = f"{GITHUB_API_BASE}/users/{username}"
+        try:
+            response = requests.get(url, headers=self.headers, timeout=30)
+            result = self._handle_response(response, "core")
+        except requests.RequestException as exc:
+            logger.warning("get_user request failed for %s: %s", username, exc)
+            result = {}
+        finally:
+            time.sleep(RATE_LIMIT_SLEEP_CORE)
+
+        return result if isinstance(result, dict) else {}
 
     def get_commits(self, owner: str, repo: str, author: str, per_page: int = 5) -> list:
         """
@@ -89,7 +141,20 @@ class GitHubClient:
             List of commit dicts. Each has commit.author.email and commit.committer.email.
             Returns empty list on error.
         """
-        pass
+        url = (
+            f"{GITHUB_API_BASE}/repos/{owner}/{repo}/commits"
+            f"?author={author}&per_page={per_page}"
+        )
+        try:
+            response = requests.get(url, headers=self.headers, timeout=30)
+            result = self._handle_response(response, "core")
+        except requests.RequestException as exc:
+            logger.warning("get_commits request failed for %s/%s: %s", owner, repo, exc)
+            result = []
+        finally:
+            time.sleep(RATE_LIMIT_SLEEP_CORE)
+
+        return result if isinstance(result, list) else []
 
     def get_user_events(self, username: str, per_page: int = 100) -> list:
         """
@@ -108,7 +173,20 @@ class GitHubClient:
         Returns:
             List of event dicts. Returns empty list on error.
         """
-        pass
+        url = (
+            f"{GITHUB_API_BASE}/users/{username}/events/public"
+            f"?per_page={per_page}"
+        )
+        try:
+            response = requests.get(url, headers=self.headers, timeout=30)
+            result = self._handle_response(response, "core")
+        except requests.RequestException as exc:
+            logger.warning("get_user_events request failed for %s: %s", username, exc)
+            result = []
+        finally:
+            time.sleep(RATE_LIMIT_SLEEP_CORE)
+
+        return result if isinstance(result, list) else []
 
     def check_rate_limit(self) -> dict:
         """
@@ -120,7 +198,20 @@ class GitHubClient:
             Dict with 'resources' key containing 'core', 'search', 'code_search' sub-dicts,
             each with 'remaining', 'limit', 'reset' fields. Returns empty dict on error.
         """
-        pass
+        url = f"{GITHUB_API_BASE}/rate_limit"
+        try:
+            response = requests.get(url, headers=self.headers, timeout=30)
+            if response.status_code == 200:
+                return response.json()
+            logger.warning(
+                "check_rate_limit returned HTTP %s: %s",
+                response.status_code,
+                response.text[:200],
+            )
+            return {}
+        except requests.RequestException as exc:
+            logger.warning("check_rate_limit request failed: %s", exc)
+            return {}
 
     def _handle_response(self, response: requests.Response, rate_pool: str) -> dict | list:
         """
@@ -139,4 +230,99 @@ class GitHubClient:
         Returns:
             Parsed JSON (dict or list)
         """
-        pass
+        # Read rate limit headers
+        remaining_str = response.headers.get("X-RateLimit-Remaining")
+        reset_str = response.headers.get("X-RateLimit-Reset")
+
+        remaining = int(remaining_str) if remaining_str else None
+        reset_time = int(reset_str) if reset_str else None
+
+        # Check if core budget is critically low — abort to protect remaining calls
+        if rate_pool == "core" and remaining is not None:
+            if remaining < CORE_BUDGET_ABORT_THRESHOLD:
+                raise RuntimeError(
+                    f"Core API budget critically low: {remaining} remaining "
+                    f"(threshold: {CORE_BUDGET_ABORT_THRESHOLD}). Aborting run."
+                )
+
+        # Handle HTTP 403 — secondary rate limit or abuse detection
+        if response.status_code == 403:
+            retry_after = response.headers.get("Retry-After")
+            if retry_after:
+                sleep_seconds = int(retry_after)
+                logger.warning(
+                    "HTTP 403 with Retry-After: %ss. Sleeping and retrying.",
+                    sleep_seconds,
+                )
+                time.sleep(sleep_seconds)
+            else:
+                # No Retry-After header; sleep until reset if available
+                if reset_time:
+                    sleep_seconds = max(reset_time - int(time.time()) + 1, 1)
+                    logger.warning(
+                        "HTTP 403 without Retry-After. Sleeping %ss until reset.",
+                        sleep_seconds,
+                    )
+                    time.sleep(sleep_seconds)
+                else:
+                    logger.warning("HTTP 403 with no retry info. Sleeping 60s.")
+                    time.sleep(60)
+
+            # Retry once
+            retry_response = requests.get(
+                response.url, headers=self.headers, timeout=30
+            )
+            if retry_response.status_code >= 400:
+                logger.warning(
+                    "Retry after 403 still failed with HTTP %s.",
+                    retry_response.status_code,
+                )
+                return {} if rate_pool in ("search", "code_search") else []
+            self.api_call_count += 1
+            return retry_response.json()
+
+        # Handle HTTP 429 — too many requests
+        if response.status_code == 429:
+            logger.warning("HTTP 429 rate limited. Sleeping 60s and retrying.")
+            time.sleep(60)
+
+            retry_response = requests.get(
+                response.url, headers=self.headers, timeout=30
+            )
+            if retry_response.status_code >= 400:
+                logger.warning(
+                    "Retry after 429 still failed with HTTP %s.",
+                    retry_response.status_code,
+                )
+                return {} if rate_pool in ("search", "code_search") else []
+            self.api_call_count += 1
+            return retry_response.json()
+
+        # Handle 404 and other client errors
+        if response.status_code == 404:
+            logger.warning("HTTP 404: %s", response.url)
+            return {} if rate_pool in ("search", "code_search") else []
+
+        if response.status_code >= 400:
+            logger.warning(
+                "HTTP %s error for %s: %s",
+                response.status_code,
+                response.url,
+                response.text[:200],
+            )
+            return {} if rate_pool in ("search", "code_search") else []
+
+        # Successful response — check if we are close to exhausting limits
+        if remaining is not None and remaining <= 2 and reset_time is not None:
+            sleep_seconds = max(reset_time - int(time.time()) + 1, 1)
+            logger.info(
+                "Rate limit nearly exhausted for %s (%s remaining). "
+                "Sleeping %ss until reset.",
+                rate_pool,
+                remaining,
+                sleep_seconds,
+            )
+            time.sleep(sleep_seconds)
+
+        self.api_call_count += 1
+        return response.json()
