@@ -2,7 +2,6 @@
 report.py — Run summary reporting for the Ghostline lead generation tool.
 """
 
-import time
 from config import RUN_ID
 
 
@@ -21,21 +20,24 @@ def print_report(stats: dict) -> None:
         already_in_sheet: int
         api_calls_used: int
         run_duration_seconds: float
-
-    Output format:
-        === Ghostline Run Report ({RUN_ID}) ===
-        Repos discovered:      {repos_discovered}
-        Repos qualified:       {repos_qualified}
-        Users processed:       {users_processed}
-        Emails found:          {emails_found}
-          - Tier 1 leads:      {tier1_leads}
-          - Tier 2 leads:      {tier2_leads}
-        New leads added:       {new_leads_added}
-        Already in sheet:      {already_in_sheet}
-        API calls used:        {api_calls_used}
-        Run duration:          {run_duration_seconds:.1f}s
-        ========================================
-
-    Appends the same summary to runs.log with a blank line separator.
     """
-    pass
+    report = (
+        f"=== Ghostline Run Report ({RUN_ID}) ===\n"
+        f"Repos discovered:      {stats.get('repos_discovered', 0)}\n"
+        f"Repos qualified:       {stats.get('repos_qualified', 0)}\n"
+        f"Users processed:       {stats.get('users_processed', 0)}\n"
+        f"Emails found:          {stats.get('emails_found', 0)}\n"
+        f"  - Tier 1 leads:      {stats.get('tier1_leads', 0)}\n"
+        f"  - Tier 2 leads:      {stats.get('tier2_leads', 0)}\n"
+        f"New leads added:       {stats.get('new_leads_added', 0)}\n"
+        f"Already in sheet:      {stats.get('already_in_sheet', 0)}\n"
+        f"API calls used:        {stats.get('api_calls_used', 0)}\n"
+        f"Run duration:          {stats.get('run_duration_seconds', 0.0):.1f}s\n"
+        f"========================================"
+    )
+
+    print(report)
+
+    # Append to runs.log
+    with open("runs.log", "a") as f:
+        f.write("\n" + report + "\n")
