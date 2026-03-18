@@ -77,7 +77,13 @@ def _read_single_key() -> str:
 
     Raises:
         KeyboardInterrupt: if the user presses Ctrl-C (byte 0x03).
+        RuntimeError: if stdin is not an interactive TTY.
     """
+    if not sys.stdin.isatty():
+        raise RuntimeError(
+            "review_cli requires an interactive terminal (stdin is not a TTY). "
+            "Run run_outreach.py directly from a terminal, not piped or redirected."
+        )
     fd = sys.stdin.fileno()
     old_settings = termios.tcgetattr(fd)
     try:
@@ -162,7 +168,16 @@ def _open_in_editor(body: str) -> str | None:
         tmp_path = tmp.name
 
     try:
-        result = subprocess.run([editor, tmp_path])
+        try:
+            result = subprocess.run([editor, tmp_path])
+        except FileNotFoundError:
+            print(
+                f"\nEditor '{editor}' not found. "
+                "Set $EDITOR to a valid editor binary (e.g. nano, vim) and try again. "
+                "Edit discarded — please choose an action again."
+            )
+            return None
+
         if result.returncode != 0:
             print(
                 f"\nEditor exited with code {result.returncode}. "

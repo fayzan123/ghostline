@@ -209,6 +209,11 @@ def process_approval(state: OutreachState) -> dict:
         elif action == "edit":
             updated["status"] = "edited"
             updated["edited_body"] = decision.get("edited_body", "")
+        elif action == "quit":
+            # User quit the review session — preserve as pending so a --resume
+            # run will re-present these drafts for review rather than silently
+            # rejecting them.
+            updated["status"] = "pending"
         else:
             # "reject" or any unrecognized action
             updated["status"] = "rejected"
