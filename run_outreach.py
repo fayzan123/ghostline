@@ -9,7 +9,7 @@ Orchestrates the full outreach pipeline:
   3. Build the LangGraph outreach graph
   4. Invoke (fresh or resumed from checkpoint)
   5. Collect human review decisions via the terminal CLI
-  6. Resume the graph with decisions injected via Command(resume=...)
+  6. Resume the graph with decisions injected via Command(update={"approval_decisions": decisions})
   7. Print a run summary
 
 Flags:
@@ -272,7 +272,25 @@ def main() -> None:
             logger.info(
                 "Resuming from checkpoint thread: outreach-%s", today_str
             )
-            snapshot = graph.invoke(None, config=thread_config)
+            # Use get_state() to retrieve the saved snapshot without executing
+            # any nodes. graph.invoke(None) would bypass the interrupt and run
+            # process_approval immediately with empty decisions.
+            state_snapshot = graph.get_state(thread_config)
+            if not state_snapshot or not state_snapshot.values:
+                print(
+                    "\nNo checkpoint found for today's thread "
+                    f"(outreach-{today_str}).\n"
+                    "Run without --resume to start a fresh pipeline."
+                )
+                sys.exit(1)
+            if "process_approval" not in (state_snapshot.next or []):
+                print(
+                    "\nCheckpoint is not paused at the review step. "
+                    "The run for today may already be complete.\n"
+                    "Delete the checkpoint DB or run tomorrow for a fresh run."
+                )
+                sys.exit(0)
+            snapshot = state_snapshot.values
         else:
             initial_state = _initial_state(
                 batch_size_override=args.batch_size
@@ -352,8 +370,12 @@ def main() -> None:
     )
 
     try:
+        # Command(update=...) patches the checkpoint state before resuming so
+        # process_approval receives the decisions via state["approval_decisions"].
+        # Command(resume=...) only delivers a value to a node that called
+        # interrupt() internally — it does NOT update any state key.
         graph.invoke(
-            Command(resume=decisions),
+            Command(update={"approval_decisions": decisions}),
             config=thread_config,
         )
     except KeyboardInterrupt:

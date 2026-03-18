@@ -109,6 +109,210 @@ crontab /tmp/existing_cron
 
 Cron output is appended to `logs/cron.log`.
 
+---
+
+## Outreach Agent
+
+The outreach agent reads scored leads from your Google Sheet, fetches each lead's GitHub README, uses Claude to generate a personalized cold email, lets you review and approve them in the terminal, and sends approved emails via Outlook.com SMTP. The entire pipeline is a stateful LangGraph graph with a human-in-the-loop checkpoint between generation and sending.
+
+---
+
+### Prerequisites
+
+Before setting up the outreach agent you must have completed the lead generation setup above — the outreach agent reads from the same Google Sheet that `run.py` writes to.
+
+---
+
+### Step 1 — Install the additional dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+The outreach agent adds `langgraph`, `langchain-core`, `anthropic`, and `langgraph-checkpoint-sqlite` on top of the existing packages. Running the command above installs everything.
+
+---
+
+### Step 2 — Create an Outlook.com account
+
+The agent sends emails from a free Outlook.com account. If you already have one, use it. If not:
+
+1. Go to [https://outlook.com](https://outlook.com) and create a free account
+2. Use an address that looks personal, not automated — something like `fayzan.chox@outlook.com`
+3. Sign in and confirm the account is active before proceeding
+
+---
+
+### Step 3 — Generate an Outlook app password
+
+Microsoft disabled basic SMTP authentication in 2023. You need an **app password** to allow the agent to authenticate over SMTP.
+
+1. Go to [https://account.live.com/proofs/manage](https://account.live.com/proofs/manage) while signed into your Outlook account
+2. If 2-factor authentication is not already enabled, enable it first (required for app passwords)
+3. Scroll down to **App passwords** and click **Create a new app password**
+4. Microsoft generates a 16-character password — copy it immediately (it is only shown once)
+5. This is your `SMTP_PASSWORD` — paste it into `.env`
+
+---
+
+### Step 4 — Get an Anthropic API key
+
+1. Go to [https://console.anthropic.com](https://console.anthropic.com) and sign in or create an account
+2. Navigate to **API Keys** and click **Create Key**
+3. Copy the key (starts with `sk-ant-`)
+4. Paste it into `ANTHROPIC_API_KEY` in your `.env` file
+
+Cost is approximately **$0.15 per 10-email batch** using Claude Sonnet.
+
+---
+
+### Step 5 — Add outreach variables to your `.env` file
+
+Open your `.env` file and add the following block:
+
+```bash
+# ── Outreach agent ────────────────────────────────────────
+# Outlook.com SMTP credentials
+SMTP_USERNAME=your-outlook-address@outlook.com
+SMTP_PASSWORD=your-16-char-app-password
+
+# Anthropic Claude API
+ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxx
+
+# Sender identity (shown in From header of every email)
+SENDER_NAME=Fayzan and Dilraj, Co-founders of Chox
+SENDER_EMAIL=your-outlook-address@outlook.com
+
+# CAN-SPAM required physical address (appears in every email footer)
+PHYSICAL_ADDRESS=Chox, Inc. | 123 Main St, City, State 00000
+```
+
+**Required:** `SMTP_USERNAME`, `SMTP_PASSWORD`, `ANTHROPIC_API_KEY` — the agent refuses to start if any of these are missing.
+
+**Optional:** `SENDER_NAME`, `SENDER_EMAIL`, `PHYSICAL_ADDRESS` — these have defaults but you should set them explicitly.
+
+---
+
+### Step 6 — Review send limits in `outreach/outreach_config.py`
+
+Open `outreach/outreach_config.py` and check these two values:
+
+```python
+BATCH_SIZE = 10          # emails generated and reviewed per run
+MAX_EMAILS_PER_DAY = 20  # hard ceiling on sends per calendar day
+```
+
+**If this is your first week sending**, lower `MAX_EMAILS_PER_DAY` to `5`. Sending 20 cold emails per day from a brand-new Outlook.com address on day one will get you flagged as spam. Ramp up gradually:
+
+| Week | Recommended `MAX_EMAILS_PER_DAY` |
+|------|----------------------------------|
+| 1–2  | 5                                |
+| 3–4  | 10                               |
+| 5+   | 15–20                            |
+
+---
+
+### Step 7 — Verify setup with a dry run
+
+A dry run executes the full pipeline — loads leads, fetches READMEs, generates emails, presents them for your review — but skips the actual send. Nothing is emailed and the Google Sheet is not updated.
+
+```bash
+python run_outreach.py --dry-run
+```
+
+What you will see:
+
+1. Config validation (fails fast if any required env var is missing)
+2. A business hours warning if you are running outside Mon–Fri 9am–5pm (advisory only)
+3. Lead loading from the Google Sheet
+4. GitHub README fetching (one API call per lead, rate-limited)
+5. Claude generating emails for each lead
+6. The review terminal — one email at a time with lead context
+
+In the review terminal, your options for each email are:
+
+| Key | Action |
+|-----|--------|
+| `A` | Approve this email |
+| `R` | Reject this email (lead stays uncontacted, available for the next run) |
+| `E` | Edit the email body in `$EDITOR` (defaults to nano), then approve the edited version |
+| `B` | Approve this email and all remaining emails in the batch — no more prompts |
+| `Q` | Quit — saves state to checkpoint, no emails sent, resume later with `--resume` |
+
+After reviewing, the dry run prints a summary of what **would** have been sent and exits.
+
+If anything errors during the dry run, fix it before running live.
+
+---
+
+### Step 8 — Run live
+
+```bash
+python run_outreach.py
+```
+
+Same flow as the dry run, except after review it:
+
+1. Sends approved emails via Outlook.com SMTP with 90–180 second randomized delays between each send
+2. Writes back `contacted=TRUE`, `contacted_at`, and `contact_method=email` to the Google Sheet for every successfully sent lead
+3. Marks bounced addresses as `response_status=bounced` in the sheet
+4. Prints a run summary (sent / failed / bounced / rejected counts)
+
+**Tip:** Review the first 2–3 emails carefully before pressing `B` to bulk-approve. Once you are confident in the email quality, `B` after a spot-check is the normal workflow.
+
+---
+
+### Resuming an interrupted run
+
+If you press `Q` during review or hit `Ctrl-C` at any point, the pipeline state is saved to `ghostline_outreach.db` in the project root. Resume from exactly where you left off:
+
+```bash
+python run_outreach.py --resume
+```
+
+The resume picks up the already-generated emails — it does not re-fetch READMEs or re-call Claude.
+
+---
+
+### Other flags
+
+```bash
+# Override batch size for this run only (does not change config)
+python run_outreach.py --batch-size 5
+
+# Combine flags
+python run_outreach.py --dry-run --batch-size 3
+```
+
+---
+
+### Outreach environment variables
+
+| Variable | Required | Description | Example |
+|----------|----------|-------------|---------|
+| `SMTP_USERNAME` | Yes | Your Outlook.com email address | `you@outlook.com` |
+| `SMTP_PASSWORD` | Yes | Outlook app password (16 chars, from account.live.com) | `abcd efgh ijkl mnop` |
+| `ANTHROPIC_API_KEY` | Yes | Anthropic API key for Claude | `sk-ant-xxxx` |
+| `SENDER_NAME` | No | Display name in the From header | `Fayzan and Dilraj, Co-founders of Chox` |
+| `SENDER_EMAIL` | No | Reply-To address (defaults to SMTP_USERNAME) | `you@outlook.com` |
+| `PHYSICAL_ADDRESS` | No | CAN-SPAM required footer address | `Chox, Inc. \| 123 Main St` |
+
+---
+
+### Outreach troubleshooting
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `Missing required environment variable(s)` | `SMTP_USERNAME`, `SMTP_PASSWORD`, or `ANTHROPIC_API_KEY` not set in `.env` | Add the missing variable(s) and re-run |
+| `SMTPAuthenticationError` | App password is wrong or 2FA is not enabled on the Outlook account | Re-generate the app password at account.live.com/proofs/manage |
+| `No uncontacted leads available` | All leads in the sheet have already been contacted | Run `python run.py` to discover new leads first |
+| `No checkpoint found for today's thread` | Used `--resume` but no run has been started today | Run without `--resume` to start a fresh pipeline |
+| `ModuleNotFoundError: langgraph` | Dependencies not installed | Run `pip install -r requirements.txt` |
+| Emails generating but all look generic | README fetch failed for most leads (404s) | Check GitHub token is set and valid in `.env` |
+| `Editor 'X' not found` | `$EDITOR` env var points to a binary that does not exist | Run `export EDITOR=nano` before running the agent |
+
+---
+
 ## Troubleshooting
 
 | Error                                    | Cause                                                                         | Fix                                                                                                         |
