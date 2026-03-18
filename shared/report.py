@@ -4,9 +4,9 @@ report.py — Run summary reporting for the Ghostline lead generation tool.
 
 import os
 
-from config import RUN_ID
+from shared.config import RUN_ID
 
-_LOG_DIR = os.path.dirname(os.path.abspath(__file__))
+_LOG_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _RUNS_LOG = os.path.join(_LOG_DIR, "runs.log")
 
 

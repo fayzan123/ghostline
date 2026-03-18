@@ -5,8 +5,8 @@ Ghostline lead generation tool.
 
 import logging
 
-from github_client import GitHubClient
-from config import SEARCH_QUERIES, PAGES_PER_QUERY
+from discovery.github_client import GitHubClient
+from shared.config import SEARCH_QUERIES, PAGES_PER_QUERY
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +77,8 @@ def discover_repos(client: GitHubClient) -> list[dict]:
 
 
 if __name__ == "__main__":
+    import os, sys
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
     client = GitHubClient()

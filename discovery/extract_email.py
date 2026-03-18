@@ -7,9 +7,9 @@ import logging
 import re
 from collections import Counter
 
-from github_client import GitHubClient
-from models import Lead
-from config import INVALID_EMAIL_PATTERNS, EMAIL_REGEX, RUN_ID, IMPORT_TO_CATEGORY
+from discovery.github_client import GitHubClient
+from shared.models import Lead
+from shared.config import INVALID_EMAIL_PATTERNS, EMAIL_REGEX, RUN_ID, IMPORT_TO_CATEGORY
 
 logger = logging.getLogger(__name__)
 
@@ -279,6 +279,8 @@ def extract_email_from_bio(bio: str) -> str | None:
 
 
 if __name__ == "__main__":
+    import os, sys
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     import logging
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")

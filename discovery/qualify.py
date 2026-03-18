@@ -5,8 +5,8 @@ Ghostline lead generation tool.
 
 import logging
 
-from github_client import GitHubClient
-from config import TUTORIAL_ORG_BLOCKLIST, REPO_NAME_BLOCKLIST, DESCRIPTION_BLOCKLIST
+from discovery.github_client import GitHubClient
+from shared.config import TUTORIAL_ORG_BLOCKLIST, REPO_NAME_BLOCKLIST, DESCRIPTION_BLOCKLIST
 
 logger = logging.getLogger(__name__)
 

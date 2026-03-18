@@ -5,8 +5,8 @@ Ghostline lead generation tool.
 
 import logging
 
-from models import Lead
-from config import (
+from shared.models import Lead
+from shared.config import (
     TIER1_THRESHOLD,
     TIER2_THRESHOLD,
     PRODUCTION_KEYWORDS,
@@ -303,6 +303,8 @@ def _build_lead_data(lead: Lead) -> dict:
 
 
 if __name__ == "__main__":
+    import os, sys
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     # --- Test score_lead ---
     print("=== score_lead() test ===\n")
 

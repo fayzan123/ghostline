@@ -1,6 +1,6 @@
 # Chox Lead Generation Tool — Master Implementation Plan
 
-*Automated daily pipeline to discover 50-100 qualified developer leads on GitHub who are actively building with LangChain/LangGraph, extract their public email, and export to Google Sheets.*
+_Automated daily pipeline to discover 50-100 qualified developer leads on GitHub who are actively building with LangChain/LangGraph, extract their public email, and export to Google Sheets._
 
 ---
 
@@ -35,12 +35,12 @@ The target lead is a **software developer actively building AI agents that make 
 
 ### 2.2 The Pain They Feel (That Chox Solves)
 
-| Pain Point | How It Manifests | Chox Solution |
-|---|---|---|
-| **Blind to agent actions** | Can see LLM traces in LangSmith/Langfuse but cannot answer "what did my agent actually DO to external systems today?" | Every tool call classified by action type (read/write/delete/financial), risk-scored (0-1), logged |
-| **No safe enforcement path** | Knows their agent could make a $50K Stripe charge or drop a table, but enabling blocking risks breaking production | Shadow verdicts: see what WOULD have been blocked, tune rules, flip enforcement only when confident |
-| **Audit gap** | Compliance/security review asks "show me every external action your AI took last week" — they cannot | Full audit log: action type, risk score, verdict, reason, request/response metadata, timestamp |
-| **Framework lock-in fear** | Worried that adding governance means coupling to yet another platform | 2 lines of SDK code (`guard.wrap()`) or a URL change (proxy mode), zero framework dependency |
+| Pain Point                   | How It Manifests                                                                                                      | Chox Solution                                                                                       |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| **Blind to agent actions**   | Can see LLM traces in LangSmith/Langfuse but cannot answer "what did my agent actually DO to external systems today?" | Every tool call classified by action type (read/write/delete/financial), risk-scored (0-1), logged  |
+| **No safe enforcement path** | Knows their agent could make a $50K Stripe charge or drop a table, but enabling blocking risks breaking production    | Shadow verdicts: see what WOULD have been blocked, tune rules, flip enforcement only when confident |
+| **Audit gap**                | Compliance/security review asks "show me every external action your AI took last week" — they cannot                  | Full audit log: action type, risk score, verdict, reason, request/response metadata, timestamp      |
+| **Framework lock-in fear**   | Worried that adding governance means coupling to yet another platform                                                 | 2 lines of SDK code (`guard.wrap()`) or a URL change (proxy mode), zero framework dependency        |
 
 ### 2.3 Qualifying Signals (Hard Requirements)
 
@@ -57,6 +57,7 @@ A lead is qualified if they meet **ALL** of the following:
 #### High-Value Import Patterns (Code Search Targets)
 
 **Tier A — Direct tool-calling imports (strongest signal):**
+
 ```
 from langchain.tools import tool
 from langchain.tools import Tool
@@ -76,6 +77,7 @@ from autogen import AssistantAgent
 ```
 
 **Tier B — Framework graph/orchestration imports (strong signal when combined with Tier A):**
+
 ```
 from langgraph.graph import StateGraph
 from langgraph.graph import MessageGraph
@@ -86,6 +88,7 @@ from langchain.chains import LLMChain
 ```
 
 **Tier C — Specific high-risk tool integrations (strongest Chox relevance):**
+
 ```
 from langchain_community.tools.gmail import *
 from langchain_community.tools.slack import *
@@ -103,6 +106,7 @@ import plaid
 #### README / Description Keywords Indicating Production Use
 
 **Strong production signals (2 points each in scoring):**
+
 ```python
 PRODUCTION_KEYWORDS = [
     "production", "deployed", "deploy", "deployment",
@@ -121,6 +125,7 @@ PRODUCTION_KEYWORDS = [
 ```
 
 **Moderate production signals (1 point each):**
+
 ```python
 MODERATE_KEYWORDS = [
     "workflow", "automation", "pipeline",
@@ -138,11 +143,11 @@ MODERATE_KEYWORDS = [
 
 ### 3.1 Tier Definitions
 
-| Tier | Score Range | Meaning | Action |
-|---|---|---|---|
-| **Tier 1 (Hot)** | 60-100 | High-confidence production agent builder with tool use | Priority outreach, personalized message |
-| **Tier 2 (Warm)** | 30-59 | Likely building agents with tools, some production signals | Standard outreach, less personalization |
-| **Disqualified** | 0-29 | Tutorial, toy project, no tool use evidence | Do not contact |
+| Tier              | Score Range | Meaning                                                    | Action                                  |
+| ----------------- | ----------- | ---------------------------------------------------------- | --------------------------------------- |
+| **Tier 1 (Hot)**  | 60-100      | High-confidence production agent builder with tool use     | Priority outreach, personalized message |
+| **Tier 2 (Warm)** | 30-59       | Likely building agents with tools, some production signals | Standard outreach, less personalization |
+| **Disqualified**  | 0-29        | Tutorial, toy project, no tool use evidence                | Do not contact                          |
 
 ### 3.2 Scoring Algorithm (0-100 Points)
 
@@ -291,6 +296,7 @@ TUTORIAL_ORG_BLOCKLIST = [
 #### Structural Heuristic for Toy Projects
 
 Mark as tutorial/toy if **ALL** of these are true:
+
 - Repo has 0 stars
 - Repo has 1 contributor
 - Repo has fewer than 5 files
@@ -395,6 +401,7 @@ q=langgraph+agent pushed:>{SINCE_DATE} fork:false&sort=updated&order=desc&per_pa
 Where `SINCE_DATE` = today minus 30 days in `YYYY-MM-DD` format.
 
 **Key parameters:**
+
 - `pushed:>YYYY-MM-DD` — filters to repos with commits in the last 30 days
 - `fork:false` — excludes forked repositories at the API level
 - `language:python` — limits to Python repos (primary target)
@@ -427,11 +434,11 @@ q="import langgraph" repo:{owner}/{repo}&per_page=1
 
 ### 4.5 Rate Limit Budget for Discovery
 
-| Step | Calls | Rate Pool |
-|------|-------|-----------|
-| 6 repo search queries x 3 pages each | 18 | Search: 30/min |
-| Code verification for ~50% of candidates | 50-150 | Code search: 10/min |
-| **Total discovery** | **~70-170 calls** | **~16 min wall time** |
+| Step                                     | Calls             | Rate Pool             |
+| ---------------------------------------- | ----------------- | --------------------- |
+| 6 repo search queries x 3 pages each     | 18                | Search: 30/min        |
+| Code verification for ~50% of candidates | 50-150            | Code search: 10/min   |
+| **Total discovery**                      | **~70-170 calls** | **~16 min wall time** |
 
 ---
 
@@ -440,6 +447,7 @@ q="import langgraph" repo:{owner}/{repo}&per_page=1
 ### 5.1 Fallback Chain (Execute in Order, Stop on First Valid Email)
 
 #### Method 1: GitHub User Profile API
+
 **Endpoint:** `GET https://api.github.com/users/{username}`
 
 Check the `email` field. Returns `null` if no public email is set.
@@ -448,6 +456,7 @@ Check the `email` field. Returns `null` if no public email is set.
 - Success rate: ~15-20% of GitHub users
 
 #### Method 2: Commit Metadata
+
 **Endpoint:** `GET https://api.github.com/repos/{owner}/{repo}/commits?author={username}&per_page=5`
 
 Parse `commit.author.email` and `commit.committer.email`. These come from the user's local git config and are often real addresses even when profile email is private.
@@ -456,6 +465,7 @@ Parse `commit.author.email` and `commit.committer.email`. These come from the us
 - Success rate: ~60-70%
 
 #### Method 3: Public Events API
+
 **Endpoint:** `GET https://api.github.com/users/{username}/events/public?per_page=100`
 
 Look for `PushEvent` types. Each push event contains `payload.commits[]` with `author.email`.
@@ -464,6 +474,7 @@ Look for `PushEvent` types. Each push event contains `payload.commits[]` with `a
 - Success rate: ~50-60%
 
 #### Method 4: Bio Parsing
+
 From the Method 1 response, regex-parse the `bio` field for email patterns.
 
 ```python
@@ -489,17 +500,18 @@ INVALID_EMAIL_PATTERNS = [
 ```
 
 **If multiple valid emails found, prefer in order:**
+
 1. Email from GitHub profile (user explicitly chose to make it public)
 2. Most frequently occurring email across commits
 3. Non-gmail/non-freemail addresses (more likely professional)
 
 ### 5.3 Email Extraction Budget
 
-| Scenario | Calls per User | For 100 Users |
-|----------|---------------|---------------|
-| Email found in profile (Method 1) | 1 | 100 |
-| Email found in commits (Methods 1+2) | 2 | 200 |
-| Full fallback chain (Methods 1-3) | 3 | 300 |
+| Scenario                             | Calls per User | For 100 Users |
+| ------------------------------------ | -------------- | ------------- |
+| Email found in profile (Method 1)    | 1              | 100           |
+| Email found in commits (Methods 1+2) | 2              | 200           |
+| Full fallback chain (Methods 1-3)    | 3              | 300           |
 
 Against the 5000/hr core rate limit, this is trivial.
 
@@ -509,36 +521,36 @@ Against the 5000/hr core rate limit, this is trivial.
 
 ### 6.1 Google Sheets Column Structure
 
-| Column | Header | Type | Purpose |
-|--------|--------|------|---------|
-| A | `github_username` | String | **Primary unique key.** Used for deduplication |
-| B | `email` | String | Resolved public email address |
-| C | `full_name` | String | Name from GitHub profile |
-| D | `repo_url` | String | URL of the qualifying repo |
-| E | `repo_name` | String | `full_name` field of the repo (owner/name) |
-| F | `repo_description` | String | Repo description (truncated to 200 chars) |
-| G | `repo_stars` | Integer | Star count at time of discovery |
-| H | `repo_language` | String | Primary language |
-| I | `frameworks_detected` | String | Comma-separated: "langchain", "langgraph", etc. |
-| J | `lead_score` | Integer | Calculated score 0-100 |
-| K | `lead_tier` | String | "tier_1", "tier_2" |
-| L | `inferred_pain_point` | String | "financial_risk", "data_mutation_risk", etc. |
-| M | `risk_apis_detected` | String | Comma-separated: "stripe", "boto3", etc. |
-| N | `profile_bio` | String | GitHub bio (truncated to 200 chars) |
-| O | `profile_company` | String | Company field |
-| P | `profile_location` | String | Location field |
-| Q | `profile_blog` | String | Blog/website URL |
-| R | `twitter_handle` | String | Twitter username |
-| S | `followers` | Integer | GitHub follower count |
-| T | `public_repos` | Integer | Number of public repos |
-| U | `email_source` | String | "profile", "commits", "events", "bio" |
-| V | `discovered_at` | ISO 8601 | When this lead was first added |
-| W | `contacted` | String | "FALSE" (default) or "TRUE" |
-| X | `contacted_at` | ISO 8601 | When outreach was sent (blank until contacted) |
-| Y | `contact_method` | String | "email", "twitter", etc. (blank until contacted) |
-| Z | `response_status` | String | "none", "replied", "interested", "not_interested", "bounced" |
-| AA | `notes` | String | Free-form notes |
-| AB | `run_id` | String | ISO date of the run (e.g., "2026-03-17") |
+| Column | Header                | Type     | Purpose                                                      |
+| ------ | --------------------- | -------- | ------------------------------------------------------------ |
+| A      | `github_username`     | String   | **Primary unique key.** Used for deduplication               |
+| B      | `email`               | String   | Resolved public email address                                |
+| C      | `full_name`           | String   | Name from GitHub profile                                     |
+| D      | `repo_url`            | String   | URL of the qualifying repo                                   |
+| E      | `repo_name`           | String   | `full_name` field of the repo (owner/name)                   |
+| F      | `repo_description`    | String   | Repo description (truncated to 200 chars)                    |
+| G      | `repo_stars`          | Integer  | Star count at time of discovery                              |
+| H      | `repo_language`       | String   | Primary language                                             |
+| I      | `frameworks_detected` | String   | Comma-separated: "langchain", "langgraph", etc.              |
+| J      | `lead_score`          | Integer  | Calculated score 0-100                                       |
+| K      | `lead_tier`           | String   | "tier_1", "tier_2"                                           |
+| L      | `inferred_pain_point` | String   | "financial_risk", "data_mutation_risk", etc.                 |
+| M      | `risk_apis_detected`  | String   | Comma-separated: "stripe", "boto3", etc.                     |
+| N      | `profile_bio`         | String   | GitHub bio (truncated to 200 chars)                          |
+| O      | `profile_company`     | String   | Company field                                                |
+| P      | `profile_location`    | String   | Location field                                               |
+| Q      | `profile_blog`        | String   | Blog/website URL                                             |
+| R      | `twitter_handle`      | String   | Twitter username                                             |
+| S      | `followers`           | Integer  | GitHub follower count                                        |
+| T      | `public_repos`        | Integer  | Number of public repos                                       |
+| U      | `email_source`        | String   | "profile", "commits", "events", "bio"                        |
+| V      | `discovered_at`       | ISO 8601 | When this lead was first added                               |
+| W      | `contacted`           | String   | "FALSE" (default) or "TRUE"                                  |
+| X      | `contacted_at`        | ISO 8601 | When outreach was sent (blank until contacted)               |
+| Y      | `contact_method`      | String   | "email", "twitter", etc. (blank until contacted)             |
+| Z      | `response_status`     | String   | "none", "replied", "interested", "not_interested", "bounced" |
+| AA     | `notes`               | String   | Free-form notes                                              |
+| AB     | `run_id`              | String   | ISO date of the run (e.g., "2026-03-17")                     |
 
 ### 6.2 Deduplication Logic
 
@@ -650,6 +662,7 @@ Search Queries --> [discover.py] --> Raw Repos (200-500)
 **Outputs:** Exit code 0 on success, 1 on failure. Prints summary to stdout.
 
 **Logic:**
+
 1. Load config
 2. Initialize GitHub client
 3. Connect to Google Sheets, load existing usernames
@@ -666,6 +679,7 @@ Search Queries --> [discover.py] --> Raw Repos (200-500)
 **Outputs:** Exports `GITHUB_TOKEN`, `SPREADSHEET_ID`, `SERVICE_ACCOUNT_FILE`, `SINCE_DATE`, `RUN_ID`, search queries, all blocklists, keyword lists, and scoring constants.
 
 **Logic:**
+
 - `SINCE_DATE = (today - 30 days).strftime('%Y-%m-%d')`
 - `RUN_ID = today.strftime('%Y-%m-%d')`
 - All blocklists from Sections 3.3 and 2.4
@@ -680,6 +694,7 @@ Search Queries --> [discover.py] --> Raw Repos (200-500)
 **Outputs:** Methods that return parsed JSON responses.
 
 **Methods:**
+
 - `search_repos(query: str, page: int) -> dict` — calls `GET /search/repositories`
 - `search_code(query: str) -> dict` — calls `GET /search/code`
 - `get_user(username: str) -> dict` — calls `GET /users/{username}`
@@ -688,6 +703,7 @@ Search Queries --> [discover.py] --> Raw Repos (200-500)
 - `check_rate_limit() -> dict` — calls `GET /rate_limit` (free, does not count)
 
 **Rate limit logic:**
+
 - Read `X-RateLimit-Remaining` and `X-RateLimit-Reset` from every response
 - If remaining <= 2: sleep until reset time + 1 second
 - On HTTP 403: read `Retry-After` header, sleep, retry
@@ -698,6 +714,7 @@ Search Queries --> [discover.py] --> Raw Repos (200-500)
 - If core budget drops below 500: abort run gracefully, save progress
 
 **Headers for all requests:**
+
 ```python
 headers = {
     "Authorization": f"Bearer {GITHUB_TOKEN}",
@@ -767,6 +784,7 @@ class Lead:
 **Outputs:** List of raw repo dicts (deduplicated by `full_name`)
 
 **Logic:**
+
 1. For each query in `SEARCH_QUERIES`:
    - Call `github_client.search_repos(query, page)` for pages 1-3
    - Collect all `items` from responses
@@ -774,6 +792,7 @@ class Lead:
 3. Return list of unique repo dicts
 
 **Edge cases:**
+
 - Some queries may return 0 results (fine, skip)
 - `total_count` may exceed 1000 but API only returns first 1000
 - Empty `items` array means no more results for that query
@@ -787,6 +806,7 @@ class Lead:
 **Outputs:** List of qualified repo dicts
 
 **Logic (filter in order):**
+
 1. `repo['fork'] == False` — double-check API filter
 2. `repo['owner']['login']` not in `TUTORIAL_ORG_BLOCKLIST`
 3. Repo name does not match any `REPO_NAME_BLOCKLIST` pattern
@@ -804,6 +824,7 @@ class Lead:
 **Outputs:** List of `Lead` objects (only those with valid emails)
 
 **Logic:**
+
 1. Collect unique usernames from `repo['owner']['login']`
 2. Remove usernames already in `existing_users` set
 3. For each username:
@@ -824,6 +845,7 @@ class Lead:
 **Outputs:** List of Lead objects with `lead_score`, `lead_tier`, `inferred_pain_point` filled
 
 **Logic:**
+
 1. For each lead:
    a. Determine `tier_a_imports`, `tier_b_imports`, `tier_c_imports` counts (from code search results or repo metadata)
    b. Calculate `production_keyword_score` from repo description/README keywords
@@ -845,6 +867,7 @@ class Lead:
 **Outputs:** Count of new leads added
 
 **Logic:**
+
 1. Connect via `gspread.service_account(filename=SERVICE_ACCOUNT_FILE)`
 2. Open sheet by key: `gc.open_by_key(SPREADSHEET_ID).sheet1`
 3. Load existing usernames: `existing_users = set(worksheet.col_values(1))`
@@ -862,6 +885,7 @@ class Lead:
 **Outputs:** Prints to stdout, appends to `runs.log`
 
 **Logic:**
+
 ```
 === Ghostline Run Report ({RUN_ID}) ===
 Repos discovered:      {X}
@@ -884,6 +908,7 @@ Run duration:          {T}s
 ### 9.1 Python Dependencies
 
 **`requirements.txt`:**
+
 ```
 requests>=2.31.0
 gspread>=6.0.0
@@ -895,6 +920,7 @@ Three dependencies. Intentionally minimal.
 ### 9.2 Environment Variables
 
 **`.env` file:**
+
 ```bash
 # GitHub Personal Access Token (classic)
 # Generate at: https://github.com/settings/tokens
@@ -1038,6 +1064,7 @@ STEP 7: REPORT
 **The risk:** GitHub ToS Section H prohibits using the API "to download data or Content from GitHub for spamming purposes, including for the purposes of selling GitHub users' personal information."
 
 **Mitigation:**
+
 - Collect ONLY publicly available emails that users chose to make visible
 - Outreach must be genuinely relevant (Chox solves a real problem for these developers)
 - Emails are NOT sold or shared with third parties
@@ -1054,6 +1081,7 @@ STEP 7: REPORT
 **The risk:** 10 requests per minute for code search is restrictive. Verifying 200 repos = 20 minutes of code search alone.
 
 **Mitigation:**
+
 - Use code search only as verification, not primary discovery
 - Skip verification for repos with clear langchain/langgraph signals in metadata
 - Cache verified repos between runs to avoid re-checking
@@ -1063,6 +1091,7 @@ STEP 7: REPORT
 **The risk:** Many GitHub users keep email private. Realistic expectation: 30-40% yield.
 
 **Mitigation:**
+
 - 4-method fallback chain maximizes extraction
 - Commit metadata is most reliable (git config often not changed)
 - For high-value leads without email: capture Twitter, blog, company for manual outreach
@@ -1073,6 +1102,7 @@ STEP 7: REPORT
 **The risk:** Repos might mention "langchain" in negative context, comparison, or unrelated dependency.
 
 **Mitigation:**
+
 - Require actual import statements in code (not just README mentions)
 - Code search verifies `"from langchain"` or `"import langchain"` in code files
 - Tutorial/demo filter removes educational content
@@ -1083,6 +1113,7 @@ STEP 7: REPORT
 **The risk:** Daily runs could surface the same users repeatedly.
 
 **Mitigation:**
+
 - Dedup against `github_username` column on every run
 - `contacted` column prevents re-contacting
 - `run_id` tracks which run found each lead
@@ -1093,6 +1124,7 @@ STEP 7: REPORT
 **The risk:** 100 requests per 100 seconds per user.
 
 **Mitigation:**
+
 - Use `append_rows()` for batch inserts (1 call, not N calls)
 - Load usernames in single `col_values()` call at startup
 - Typical run makes fewer than 10 Sheets API calls total
@@ -1102,6 +1134,7 @@ STEP 7: REPORT
 **The risk:** GitHub PAT expires, or service account key is rotated.
 
 **Mitigation:**
+
 - At startup, call `GET /rate_limit` to verify GitHub auth — exit immediately with clear error if auth fails
 - Set GitHub PAT to 90 days, set calendar reminder
 - Google service account keys don't expire unless manually revoked
@@ -1111,6 +1144,7 @@ STEP 7: REPORT
 **The risk:** Point-based scoring may over/under-weight certain signals, leading to mis-tiered leads.
 
 **Mitigation:**
+
 - All thresholds and weights are configurable in `config.py`
 - After first 2 weeks, review tier 1 vs tier 2 response rates and adjust weights
 - The scoring algorithm is intentionally transparent (no ML black box) for easy tuning
@@ -1131,19 +1165,20 @@ headers = {
 
 ### Endpoint Quick Reference
 
-| Purpose | Method | URL | Rate Pool |
-|---------|--------|-----|-----------|
-| Search repos | GET | `https://api.github.com/search/repositories?q={query}` | Search: 30/min |
-| Search code | GET | `https://api.github.com/search/code?q={query}` | Code search: 10/min |
-| User profile | GET | `https://api.github.com/users/{username}` | Core: 5000/hr |
-| Repo commits | GET | `https://api.github.com/repos/{owner}/{repo}/commits` | Core: 5000/hr |
-| User events | GET | `https://api.github.com/users/{username}/events/public` | Core: 5000/hr |
-| Rate limit | GET | `https://api.github.com/rate_limit` | Free |
-| Sheets append | POST | Google Sheets API v4 | 100 req/100s |
+| Purpose       | Method | URL                                                     | Rate Pool           |
+| ------------- | ------ | ------------------------------------------------------- | ------------------- |
+| Search repos  | GET    | `https://api.github.com/search/repositories?q={query}`  | Search: 30/min      |
+| Search code   | GET    | `https://api.github.com/search/code?q={query}`          | Code search: 10/min |
+| User profile  | GET    | `https://api.github.com/users/{username}`               | Core: 5000/hr       |
+| Repo commits  | GET    | `https://api.github.com/repos/{owner}/{repo}/commits`   | Core: 5000/hr       |
+| User events   | GET    | `https://api.github.com/users/{username}/events/public` | Core: 5000/hr       |
+| Rate limit    | GET    | `https://api.github.com/rate_limit`                     | Free                |
+| Sheets append | POST   | Google Sheets API v4                                    | 100 req/100s        |
 
 ### Response Field Paths
 
 **Repo search result:**
+
 ```
 response['items'][i]['full_name']        -> "owner/repo-name"
 response['items'][i]['html_url']         -> "https://github.com/owner/repo"
@@ -1158,6 +1193,7 @@ response['total_count']                  -> 1523
 ```
 
 **User profile:**
+
 ```
 response['login']              -> "username"
 response['name']               -> "John Doe"
@@ -1172,6 +1208,7 @@ response['public_repos']       -> 42
 ```
 
 **Commit metadata:**
+
 ```
 response[i]['commit']['author']['name']     -> "John Doe"
 response[i]['commit']['author']['email']    -> "john@example.com"
@@ -1204,9 +1241,10 @@ response[i]['commit']['committer']['email'] -> "john@example.com"
 
 ---
 
-*This document is implementation-ready. All keyword lists, scoring weights, thresholds, API endpoints, and module specifications can be directly translated to Python code by a coding agent.*
+_This document is implementation-ready. All keyword lists, scoring weights, thresholds, API endpoints, and module specifications can be directly translated to Python code by a coding agent._
 
 Sources:
+
 - [GitHub REST API Search Endpoints](https://docs.github.com/en/rest/search/search?apiVersion=2022-11-28)
 - [GitHub Rate Limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api)
 - [GitHub Code Search](https://docs.github.com/en/search-github/searching-on-github/searching-code)
@@ -1219,3 +1257,5 @@ Sources:
 - [gspread Authentication](https://docs.gspread.org/en/v6.1.2/oauth2.html)
 - [LangChain Tools Documentation](https://docs.langchain.com/oss/python/langchain/tools)
 - [LangGraph Repository](https://github.com/langchain-ai/langgraph)
+
+comet-ml support@comet.com Comet https://github.com/comet-ml/opik comet-ml/opik Debug, evaluate, and monitor your LLM applications, RAG systems, and agentic workflows with comprehensive tracing, automated evaluations, and production-ready dashboards. 18303 Python langchain

@@ -6,7 +6,7 @@ Ghostline lead generation tool.
 import logging
 import time
 import requests
-from config import (
+from shared.config import (
     GITHUB_HEADERS,
     GITHUB_API_BASE,
     RATE_LIMIT_SLEEP_SEARCH,

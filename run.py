@@ -12,14 +12,14 @@ import sys
 import time
 import traceback
 
-import config
-from github_client import GitHubClient
-from discover import discover_repos
-from qualify import qualify_repos
-from extract_email import extract_emails
-from score import score_leads
-from sheets import connect_to_sheet, load_existing_usernames, append_leads
-from report import print_report
+import shared.config as config
+from discovery.github_client import GitHubClient
+from discovery.discover import discover_repos
+from discovery.qualify import qualify_repos
+from discovery.extract_email import extract_emails
+from discovery.score import score_leads
+from shared.sheets import connect_to_sheet, load_existing_usernames, append_leads
+from shared.report import print_report
 
 logger = logging.getLogger(__name__)
 

@@ -10,8 +10,8 @@ import time
 
 import gspread
 from gspread.exceptions import APIError, SpreadsheetNotFound
-from models import Lead
-from config import SERVICE_ACCOUNT_FILE, SPREADSHEET_ID, GOOGLE_SHEET_HEADERS
+from shared.models import Lead
+from shared.config import SERVICE_ACCOUNT_FILE, SPREADSHEET_ID, GOOGLE_SHEET_HEADERS
 
 logger = logging.getLogger(__name__)
 
