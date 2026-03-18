@@ -200,6 +200,52 @@ class GitHubClient:
 
         return result if isinstance(result, list) else []
 
+    def get_readme(self, owner: str, repo: str, max_chars: int = 2000) -> str:
+        """
+        Fetch the raw README for a repository, truncated to max_chars.
+
+        Endpoint: GET /repos/{owner}/{repo}/readme
+        Accept: application/vnd.github.raw  (returns raw text, not base64 JSON)
+        Rate pool: Core API (5000 req/hr)
+        Sleep: RATE_LIMIT_SLEEP_CORE between calls
+
+        Args:
+            owner: Repository owner login
+            repo: Repository name
+            max_chars: Maximum characters to return (default 2000)
+
+        Returns:
+            Raw README text truncated to max_chars, or empty string if the
+            repository has no README or the request fails.
+        """
+        url = f"{GITHUB_API_BASE}/repos/{owner}/{repo}/readme"
+        raw_headers = dict(self.headers)
+        raw_headers["Accept"] = "application/vnd.github.raw"
+        try:
+            response = requests.get(url, headers=raw_headers, timeout=30)
+            if response.status_code == 404:
+                logger.warning("No README found for %s/%s (HTTP 404).", owner, repo)
+                result = ""
+            elif response.status_code >= 400:
+                # Delegate non-404 error handling through the standard handler.
+                # _handle_response expects a dict|list return type, so we call it
+                # here only for its side effects (logging, rate-limit sleeps).
+                # The README text itself comes from response.text on success.
+                self._handle_response(response, "core")
+                result = ""
+            else:
+                # Successful response — honour rate-limit headers via _handle_response
+                # by passing a copy; ignore its return value and use response.text.
+                self._handle_response(response, "core")
+                result = response.text[:max_chars]
+        except requests.RequestException as exc:
+            logger.warning("get_readme request failed for %s/%s: %s", owner, repo, exc)
+            result = ""
+        finally:
+            time.sleep(RATE_LIMIT_SLEEP_CORE)
+
+        return result if isinstance(result, str) else ""
+
     def check_rate_limit(self) -> dict:
         """
         Check current rate limit status. Does NOT count against rate limits.

@@ -1,3 +1,8 @@
 requests>=2.31.0
 gspread>=6.0.0
 python-dotenv>=1.0.0
+
+# Outreach agent
+langgraph>=0.2.0
+langchain-core>=0.3.0
+anthropic>=0.40.0
