@@ -6,7 +6,7 @@ Nodes (in order):
   1. load_leads       — Fetch uncontacted leads from Google Sheet, slice to BATCH_SIZE.
   2. fetch_readmes    — Fetch GitHub READMEs for all leads in the batch.
   3. generate_emails  — Call Claude to generate a personalized email per lead.
-  4. present_for_review — Print all drafts to the terminal for human review.
+  4. present_for_review — Print generation summary; review happens in the entry point.
   5. process_approval — Apply human approval decisions to drafts in state.
   6. send_emails      — Send approved/edited drafts via Gmail SMTP.
   7. update_sheet     — Write back contacted/bounced/rejected status to Google Sheet.
@@ -30,7 +30,8 @@ from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.sqlite import SqliteSaver
 
 from outreach.outreach_state import OutreachState, EmailDraft
-from outreach.outreach_config import BATCH_SIZE, CHECKPOINT_DB
+import outreach.outreach_config as outreach_config
+from outreach.outreach_config import CHECKPOINT_DB
 from outreach.outreach_sheets import (
     load_uncontacted_leads,
     mark_lead_contacted,
@@ -58,7 +59,7 @@ _github_client = GitHubClient()
 def load_leads(state: OutreachState) -> dict:
     """Load uncontacted leads from the Google Sheet and slice to BATCH_SIZE."""
     leads = load_uncontacted_leads()
-    batch = leads[:BATCH_SIZE]
+    batch = leads[:outreach_config.BATCH_SIZE]
 
     logger.info(
         "load_leads: %d total uncontacted leads, sliced to %d for this batch.",
@@ -121,49 +122,15 @@ def generate_emails(state: OutreachState) -> dict:
 
 
 def present_for_review(state: OutreachState) -> dict:
-    """Format and print all draft emails to the terminal for human review.
-
-    This node only displays — it does not collect input. The graph interrupts
-    after this node (before process_approval) so the entry point can collect
-    human decisions externally.
-    """
+    """Signals that generation is complete. Review happens in the entry point after interrupt."""
     drafts = state.get("drafts", [])
-    total = len(drafts)
-
-    print(f"\nGenerated {total} emails. Starting review...\n")
-
-    for i, draft in enumerate(drafts, start=1):
-        # Skip failed drafts in display
-        if draft["status"] == "failed":
-            print(f"{'=' * 54}")
-            print(f"Email {i}/{total}  [FAILED — skipped]")
-            print(f"{'=' * 54}")
-            print(f"  Error: {draft.get('send_error', 'unknown')}\n")
-            continue
-
-        ctx = draft.get("lead_context", {})
-
-        print(f"{'=' * 54}")
-        print(f"Email {i}/{total}")
-        print(f"{'=' * 54}")
-        print()
-        print("LEAD CONTEXT:")
-        print(f"  Name:       {ctx.get('full_name', ctx.get('github_username', ''))}")
-        print(f"  Username:   {ctx.get('github_username', '')}")
-        print(f"  Email:      {draft.get('to_email', '')}")
-        print(f"  Repo:       {ctx.get('repo_name', '')} ({ctx.get('repo_stars', 0)} stars)")
-        print(f"  Frameworks: {ctx.get('frameworks_detected', '')}")
-        print(f"  Score:      {ctx.get('lead_score', '')} ({ctx.get('lead_tier', '')})")
-        print(f"  Company:    {ctx.get('profile_company', '') or 'Independent'}")
-        print()
-        print("GENERATED EMAIL:")
-        print(f"  Subject: {draft['subject']}")
-        print()
-        # Indent body lines for visual clarity
-        for line in draft["body"].splitlines():
-            print(f"  {line}")
-        print()
-
+    successful = sum(1 for d in drafts if d["status"] != "failed")
+    failed = len(drafts) - successful
+    summary = f"\nGenerated {successful} email(s)"
+    if failed:
+        summary += f" ({failed} failed)"
+    summary += ". Starting review...\n"
+    print(summary)
     return {}
 
 

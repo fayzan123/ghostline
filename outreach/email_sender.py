@@ -125,17 +125,6 @@ def _build_message(draft: EmailDraft) -> MIMEText:
 # CAN-SPAM body content check
 # ---------------------------------------------------------------------------
 
-_UNSUBSCRIBE_MARKER = "unsubscribe"
-
-
-def _warn_if_missing_compliance_elements(draft: EmailDraft) -> None:
-    """Log a warning if the email body is missing an unsubscribe line."""
-    body_lower = (draft.get("body") or "").lower()
-    if _UNSUBSCRIBE_MARKER not in body_lower:
-        logger.warning(
-            "Draft for %s is missing an unsubscribe line.",
-            draft["to_email"],
-        )
 
 
 # ---------------------------------------------------------------------------
@@ -185,8 +174,6 @@ def _send_one(
     """
     # Shallow copy so we do not mutate the original state list in-place
     result: EmailDraft = dict(draft)  # type: ignore[assignment]
-
-    _warn_if_missing_compliance_elements(draft)
 
     try:
         msg = _build_message(draft)

@@ -355,10 +355,10 @@ def main() -> None:
     )
     quit_count = sum(1 for d in decisions if d.get("action") == "quit")
 
-    if quit_count > 0 and approved_count == 0:
-        # User quit without approving anything — checkpoint is intact
+    if quit_count > 0:
+        # User pressed Q — discard all decisions, save checkpoint as-is
         print(
-            "\nNo emails approved. State saved to checkpoint.\n"
+            "\nQuit during review. No emails sent. State saved to checkpoint.\n"
             "Resume with: python run_outreach.py --resume"
         )
         sys.exit(0)

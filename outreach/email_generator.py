@@ -89,8 +89,8 @@ EMAIL CONSTRAINTS:
 
 STRUCTURE (three paragraphs):
 - First paragraph: Reference their specific project and what it does (1-2 sentences). Personalize based on what they are building, what frameworks they use, what their agent does. This is the primary personalization vector.
-- Second paragraph: Connect what they are building to Chox's core value prop — governance and visibility over agent tool calls. Keep it concrete: classify, risk-score, shadow verdicts, two-line integration. (2-3 sentences)
-- Third paragraph: Low-friction CTA question (1 sentence). Ask a question, not a commitment. Never say "schedule a demo" or "book a call."
+- Second paragraph: Connect what they are building to Chox's core value prop — governance and visibility over agent tool calls. Keep it concrete: classify, risk-score, shadow verdicts, easy integration. (2-3 sentences)
+- Third paragraph: Invite them to try Chox and tell them to reply if they have any questions. One or two sentences, no pressure. Never say "schedule a demo" or "book a call."
 
 SIGN-OFF (always use this exactly):
 -- Fayzan & Dilraj
@@ -98,7 +98,6 @@ Co-founders, Chox (chox.ai)
 
 FOOTER (always include after the sign-off, separated by a blank line):
 Chox, Inc. | Toronto, ON
-Reply "unsubscribe" to opt out.
 
 TONE:
 - Write like a developer talking to a developer, not a marketer.
