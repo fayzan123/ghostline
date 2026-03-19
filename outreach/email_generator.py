@@ -125,6 +125,12 @@ BANNED WORDS AND PATTERNS (never use any of these):
 - "delighted"
 - em dashes (the -- or \u2014 character used mid-sentence)
 
+GREETING RULES:
+- The NAME field may be a real first name (e.g. "Marcus"), a full name (e.g. "Marcus Chen"), a company name, a GitHub username with numbers/underscores, or garbage data.
+- If NAME looks like a real human first name or full name, open with "Hi [first name]," using only the first word.
+- If NAME looks like a company name, a handle, contains numbers, underscores, or is clearly not a person's name, do NOT use it. Instead open the email without a greeting line — start directly with the first sentence (e.g. "I came across your...").
+- Never invent a name. Never guess. When in doubt, skip the greeting entirely.
+
 ADDITIONAL RULES:
 - Never claim to know them personally.
 - Do not mention that you read their README or scraped their data. Write as if you naturally came across their project.
@@ -186,10 +192,13 @@ def _parse_response(text: str) -> Optional[tuple[str, str]]:
 
 def _build_user_prompt(lead: dict, readme_text: str) -> str:
     """Build the per-lead user prompt from lead data and README content."""
+    # Pass full_name as-is so Claude can judge whether it is a real name.
+    # Fall back to github_username if full_name is empty, and to "unknown" if
+    # both are missing. Claude's greeting rules handle non-name values.
     name = (
         lead.get("full_name")
         or lead.get("github_username")
-        or "there"
+        or "unknown"
     )
     repo_name = lead.get("repo_name", "unknown project")
     repo_description = lead.get("repo_description", "no description available")
