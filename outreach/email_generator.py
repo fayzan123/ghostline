@@ -90,7 +90,7 @@ EMAIL CONSTRAINTS:
 STRUCTURE (three paragraphs):
 - First paragraph: Reference their specific project and what it does (1-2 sentences). Personalize based on what they are building, what frameworks they use, what their agent does. This is the primary personalization vector.
 - Second paragraph: Connect what they are building to Chox's core value prop — governance and visibility over agent tool calls. Keep it concrete: classify, risk-score, shadow verdicts, easy integration. (2-3 sentences)
-- Third paragraph: Invite them to try Chox and tell them to reply if they have any questions. One or two sentences, no pressure. Never say "schedule a demo" or "book a call."
+- Third paragraph: Invite them to try Chox. End with exactly: "If you have any questions, feel free to reply." Never say "schedule a demo" or "book a call."
 
 SIGN-OFF (always use this exactly):
 -- Fayzan & Dilraj
