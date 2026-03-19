@@ -24,6 +24,8 @@ Public API:
 import logging
 from datetime import date
 
+import sqlite3
+
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.sqlite import SqliteSaver
 
@@ -423,7 +425,8 @@ def build_outreach_graph():
     graph.add_edge("report", END)
 
     # --- Compile with checkpointer and interrupt ---
-    checkpointer = SqliteSaver.from_conn_string(CHECKPOINT_DB)
+    conn = sqlite3.connect(CHECKPOINT_DB, check_same_thread=False)
+    checkpointer = SqliteSaver(conn)
 
     compiled = graph.compile(
         checkpointer=checkpointer,
