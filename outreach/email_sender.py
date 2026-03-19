@@ -2,7 +2,7 @@
 email_sender.py — SMTP email sending module for the Ghostline outreach agent.
 
 Responsibilities:
-  - Establish a single STARTTLS connection to Outlook.com SMTP for an entire batch.
+  - Establish a single STARTTLS connection to Gmail SMTP for an entire batch.
   - Build RFC 2822-compliant plain-text MIME messages with all required headers.
   - Apply randomized inter-send pacing per the deliverability strategy.
   - Classify failures as hard bounces ("bounced") vs transient/general failures
@@ -13,7 +13,7 @@ Responsibilities:
 Design decisions:
   - One connection for the whole batch (not one per email).  Re-establishing a
     TLS handshake per email adds latency and may trigger rate-limiting at
-    Outlook's edge; a single authenticated session is both faster and stealthier.
+    Gmail's edge; a single authenticated session is both faster and stealthier.
   - Hard bounce classification is based purely on SMTP response codes, not string
     parsing.  SMTPRecipientsRefused is the canonical "5xx RCPT TO rejected" signal.
     SMTPDataError with a 5xx permanent code is also treated as a bounce because
@@ -42,7 +42,6 @@ from typing import List
 from outreach.outreach_config import (
     MAX_SEND_DELAY_SECONDS,
     MIN_SEND_DELAY_SECONDS,
-    PHYSICAL_ADDRESS,
     SENDER_EMAIL,
     SENDER_NAME,
     SMTP_HOST,
@@ -127,24 +126,14 @@ def _build_message(draft: EmailDraft) -> MIMEText:
 # ---------------------------------------------------------------------------
 
 _UNSUBSCRIBE_MARKER = "unsubscribe"
-_ADDRESS_MARKER = "chox"  # Physical address block always contains "Chox"
 
 
 def _warn_if_missing_compliance_elements(draft: EmailDraft) -> None:
-    """Log a warning if the email body is missing CAN-SPAM required elements.
-
-    This is non-blocking: the email is still sent.  The generator owns
-    compliance; this function only provides an early-warning signal.
-    """
+    """Log a warning if the email body is missing an unsubscribe line."""
     body_lower = (draft.get("body") or "").lower()
     if _UNSUBSCRIBE_MARKER not in body_lower:
         logger.warning(
-            "Draft for %s is missing an unsubscribe line — CAN-SPAM requires one.",
-            draft["to_email"],
-        )
-    if _ADDRESS_MARKER not in body_lower:
-        logger.warning(
-            "Draft for %s may be missing a physical address — CAN-SPAM requires one.",
+            "Draft for %s is missing an unsubscribe line.",
             draft["to_email"],
         )
 

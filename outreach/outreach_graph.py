@@ -8,7 +8,7 @@ Nodes (in order):
   3. generate_emails  — Call Claude to generate a personalized email per lead.
   4. present_for_review — Print all drafts to the terminal for human review.
   5. process_approval — Apply human approval decisions to drafts in state.
-  6. send_emails      — Send approved/edited drafts via Outlook SMTP.
+  6. send_emails      — Send approved/edited drafts via Gmail SMTP.
   7. update_sheet     — Write back contacted/bounced/rejected status to Google Sheet.
   8. report           — Print a summary of the run to stdout.
 
@@ -235,7 +235,7 @@ def process_approval(state: OutreachState) -> dict:
 
 
 def send_emails(state: OutreachState) -> dict:
-    """Send approved/edited drafts via Outlook SMTP and update state counts."""
+    """Send approved/edited drafts via Gmail SMTP and update state counts."""
     drafts = state.get("drafts", [])
 
     updated_drafts = send_batch(drafts)

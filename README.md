@@ -113,7 +113,7 @@ Cron output is appended to `logs/cron.log`.
 
 ## Outreach Agent
 
-The outreach agent reads scored leads from your Google Sheet, fetches each lead's GitHub README, uses Claude to generate a personalized cold email, lets you review and approve them in the terminal, and sends approved emails via Outlook.com SMTP. The entire pipeline is a stateful LangGraph graph with a human-in-the-loop checkpoint between generation and sending.
+The outreach agent reads scored leads from your Google Sheet, fetches each lead's GitHub README, uses Claude to generate a personalized cold email, lets you review and approve them in the terminal, and sends approved emails via Gmail SMTP. The entire pipeline is a stateful LangGraph graph with a human-in-the-loop checkpoint between generation and sending.
 
 ---
 
@@ -133,24 +133,20 @@ The outreach agent adds `langgraph`, `langchain-core`, `anthropic`, and `langgra
 
 ---
 
-### Step 2 — Create an Outlook.com account
+### Step 2 — Use your Gmail account
 
-The agent sends emails from a free Outlook.com account. If you already have one, use it. If not:
-
-1. Go to [https://outlook.com](https://outlook.com) and create a free account
-2. Use an address that looks personal, not automated — something like `fayzan.chox@outlook.com`
-3. Sign in and confirm the account is active before proceeding
+The agent sends emails from a Gmail account. Use your existing personal Gmail — no new account needed.
 
 ---
 
-### Step 3 — Generate an Outlook app password
+### Step 3 — Generate a Gmail app password
 
-Microsoft disabled basic SMTP authentication in 2023. You need an **app password** to allow the agent to authenticate over SMTP.
+Google requires an app password for SMTP access (your regular Gmail password will not work).
 
-1. Go to [https://account.live.com/proofs/manage](https://account.live.com/proofs/manage) while signed into your Outlook account
-2. If 2-factor authentication is not already enabled, enable it first (required for app passwords)
-3. Scroll down to **App passwords** and click **Create a new app password**
-4. Microsoft generates a 16-character password — copy it immediately (it is only shown once)
+1. Enable 2-Step Verification on your Google account at [myaccount.google.com/security](https://myaccount.google.com/security) (required)
+2. Go to [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
+3. Select **Mail** and click **Generate**
+4. Google shows a 16-character password — copy it immediately (it is only shown once)
 5. This is your `SMTP_PASSWORD` — paste it into `.env`
 
 ---
@@ -172,24 +168,21 @@ Open your `.env` file and add the following block:
 
 ```bash
 # ── Outreach agent ────────────────────────────────────────
-# Outlook.com SMTP credentials
-SMTP_USERNAME=your-outlook-address@outlook.com
-SMTP_PASSWORD=your-16-char-app-password
+# Gmail SMTP credentials
+SMTP_USERNAME=yourgmail@gmail.com
+SMTP_PASSWORD=xxxx xxxx xxxx xxxx
 
 # Anthropic Claude API
 ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxx
 
 # Sender identity (shown in From header of every email)
 SENDER_NAME=Fayzan and Dilraj, Co-founders of Chox
-SENDER_EMAIL=your-outlook-address@outlook.com
-
-# CAN-SPAM required physical address (appears in every email footer)
-PHYSICAL_ADDRESS=Chox, Inc. | 123 Main St, City, State 00000
+SENDER_EMAIL=yourgmail@gmail.com
 ```
 
 **Required:** `SMTP_USERNAME`, `SMTP_PASSWORD`, `ANTHROPIC_API_KEY` — the agent refuses to start if any of these are missing.
 
-**Optional:** `SENDER_NAME`, `SENDER_EMAIL`, `PHYSICAL_ADDRESS` — these have defaults but you should set them explicitly.
+**Optional:** `SENDER_NAME`, `SENDER_EMAIL` — these have defaults but you should set them explicitly.
 
 ---
 
@@ -202,7 +195,7 @@ BATCH_SIZE = 10          # emails generated and reviewed per run
 MAX_EMAILS_PER_DAY = 20  # hard ceiling on sends per calendar day
 ```
 
-**If this is your first week sending**, lower `MAX_EMAILS_PER_DAY` to `5`. Sending 20 cold emails per day from a brand-new Outlook.com address on day one will get you flagged as spam. Ramp up gradually:
+**If this is your first week sending**, lower `MAX_EMAILS_PER_DAY` to `5`. Sending 20 cold emails per day from a Gmail account on day one will get you flagged as spam. Ramp up gradually:
 
 | Week | Recommended `MAX_EMAILS_PER_DAY` |
 |------|----------------------------------|
@@ -253,7 +246,7 @@ python run_outreach.py
 
 Same flow as the dry run, except after review it:
 
-1. Sends approved emails via Outlook.com SMTP with 90–180 second randomized delays between each send
+1. Sends approved emails via Gmail SMTP with 90–180 second randomized delays between each send
 2. Writes back `contacted=TRUE`, `contacted_at`, and `contact_method=email` to the Google Sheet for every successfully sent lead
 3. Marks bounced addresses as `response_status=bounced` in the sheet
 4. Prints a run summary (sent / failed / bounced / rejected counts)
@@ -290,12 +283,11 @@ python run_outreach.py --dry-run --batch-size 3
 
 | Variable | Required | Description | Example |
 |----------|----------|-------------|---------|
-| `SMTP_USERNAME` | Yes | Your Outlook.com email address | `you@outlook.com` |
-| `SMTP_PASSWORD` | Yes | Outlook app password (16 chars, from account.live.com) | `abcd efgh ijkl mnop` |
+| `SMTP_USERNAME` | Yes | Your Gmail address | `you@gmail.com` |
+| `SMTP_PASSWORD` | Yes | Gmail app password (16 chars, from myaccount.google.com/apppasswords) | `abcd efgh ijkl mnop` |
 | `ANTHROPIC_API_KEY` | Yes | Anthropic API key for Claude | `sk-ant-xxxx` |
 | `SENDER_NAME` | No | Display name in the From header | `Fayzan and Dilraj, Co-founders of Chox` |
-| `SENDER_EMAIL` | No | Reply-To address (defaults to SMTP_USERNAME) | `you@outlook.com` |
-| `PHYSICAL_ADDRESS` | No | CAN-SPAM required footer address | `Chox, Inc. \| 123 Main St` |
+| `SENDER_EMAIL` | No | Reply-To address (defaults to SMTP_USERNAME) | `you@gmail.com` |
 
 ---
 
@@ -304,7 +296,7 @@ python run_outreach.py --dry-run --batch-size 3
 | Error | Cause | Fix |
 |-------|-------|-----|
 | `Missing required environment variable(s)` | `SMTP_USERNAME`, `SMTP_PASSWORD`, or `ANTHROPIC_API_KEY` not set in `.env` | Add the missing variable(s) and re-run |
-| `SMTPAuthenticationError` | App password is wrong or 2FA is not enabled on the Outlook account | Re-generate the app password at account.live.com/proofs/manage |
+| `SMTPAuthenticationError` | App password is wrong or 2FA is not enabled on the Gmail account | Re-generate the app password at myaccount.google.com/apppasswords |
 | `No uncontacted leads available` | All leads in the sheet have already been contacted | Run `python run.py` to discover new leads first |
 | `No checkpoint found for today's thread` | Used `--resume` but no run has been started today | Run without `--resume` to start a fresh pipeline |
 | `ModuleNotFoundError: langgraph` | Dependencies not installed | Run `pip install -r requirements.txt` |

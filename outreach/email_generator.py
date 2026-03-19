@@ -29,7 +29,6 @@ from outreach.outreach_config import (
     CLAUDE_MAX_TOKENS,
     CLAUDE_MODEL,
     CLAUDE_TEMPERATURE,
-    PHYSICAL_ADDRESS,
     README_MAX_CHARS,
 )
 from outreach.outreach_state import EmailDraft
@@ -98,7 +97,7 @@ SIGN-OFF (always use this exactly):
 Co-founders, Chox (chox.ai)
 
 FOOTER (always include after the sign-off, separated by a blank line):
-{PHYSICAL_ADDRESS}
+Chox, Inc. | Toronto, ON
 Reply "unsubscribe" to opt out.
 
 TONE:

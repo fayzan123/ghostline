@@ -25,7 +25,6 @@ ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
 # Sender identity
 SENDER_NAME: str = os.getenv("SENDER_NAME", "Fayzan and Dilraj, Co-founders of Chox")
 SENDER_EMAIL: str = os.getenv("SENDER_EMAIL", SMTP_USERNAME)
-PHYSICAL_ADDRESS: str = os.getenv("PHYSICAL_ADDRESS", "Chox, Inc. | [address]")
 
 # ---------------------------------------------------------------------------
 # Fail loudly at import time if critical credentials are missing
@@ -50,8 +49,9 @@ if _missing:
 # SMTP constants
 # ---------------------------------------------------------------------------
 
-SMTP_HOST: str = "smtp-mail.outlook.com"
+SMTP_HOST: str = "smtp.gmail.com"
 SMTP_PORT: int = 587  # STARTTLS
+# To switch to Microsoft 365 later: SMTP_HOST = "smtp.office365.com" (port stays 587)
 
 # ---------------------------------------------------------------------------
 # Send pacing
