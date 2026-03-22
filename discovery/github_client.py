@@ -234,9 +234,12 @@ class GitHubClient:
                 self._handle_response(response, "core")
                 result = ""
             else:
-                # Successful response — honour rate-limit headers via _handle_response
-                # by passing a copy; ignore its return value and use response.text.
-                self._handle_response(response, "core")
+                # Successful response — call _handle_response for rate-limit side effects
+                # but catch the JSONDecodeError it raises on raw text responses.
+                try:
+                    self._handle_response(response, "core")
+                except ValueError:
+                    self.api_call_count += 1
                 result = response.text[:max_chars]
         except requests.RequestException as exc:
             logger.warning("get_readme request failed for %s/%s: %s", owner, repo, exc)
