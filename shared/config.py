@@ -40,9 +40,9 @@ GITHUB_HEADERS = {
 # Pagination / run limits
 # ---------------------------------------------------------------------------
 
-PAGES_PER_QUERY = 3
+PAGES_PER_QUERY = 10
 PER_PAGE = 100
-MAX_LEADS_PER_RUN = 500
+MAX_LEADS_PER_RUN = 1000
 
 # ---------------------------------------------------------------------------
 # Scoring thresholds
@@ -65,12 +65,34 @@ CORE_BUDGET_ABORT_THRESHOLD = 500
 # ---------------------------------------------------------------------------
 
 SEARCH_QUERIES = [
-    f"langchain language:python pushed:>{SINCE_DATE} fork:false",
-    f"langgraph language:python pushed:>{SINCE_DATE} fork:false",
-    f"langchain language:typescript pushed:>{SINCE_DATE} fork:false",
-    f"langgraph language:typescript pushed:>{SINCE_DATE} fork:false",
-    f"langchain+agent pushed:>{SINCE_DATE} fork:false",
-    f"langgraph+agent pushed:>{SINCE_DATE} fork:false",
+    # Framework + financial APIs — highest fit signal
+    f"langgraph stripe language:python pushed:>{SINCE_DATE} fork:false",
+    f"langchain stripe language:python pushed:>{SINCE_DATE} fork:false",
+    f"langgraph twilio language:python pushed:>{SINCE_DATE} fork:false",
+    f"langchain twilio language:python pushed:>{SINCE_DATE} fork:false",
+    f"langgraph plaid language:python pushed:>{SINCE_DATE} fork:false",
+    f"langchain sendgrid language:python pushed:>{SINCE_DATE} fork:false",
+
+    # Framework + database writes — agents modifying real data
+    f"langgraph postgresql language:python pushed:>{SINCE_DATE} fork:false",
+    f"langchain postgresql language:python pushed:>{SINCE_DATE} fork:false",
+    f"langgraph sqlalchemy language:python pushed:>{SINCE_DATE} fork:false",
+    f"langchain sqlalchemy language:python pushed:>{SINCE_DATE} fork:false",
+
+    # Framework + tool calling patterns — real agentic architecture
+    f"langgraph ToolNode language:python pushed:>{SINCE_DATE} fork:false",
+    f"langchain AgentExecutor language:python pushed:>{SINCE_DATE} fork:false",
+    f"langgraph tool_node language:python pushed:>{SINCE_DATE} fork:false",
+
+    # Other agentic frameworks missing from original queries
+    f"crewai stripe language:python pushed:>{SINCE_DATE} fork:false",
+    f"crewai tool language:python pushed:>{SINCE_DATE} fork:false",
+    f"autogen tool language:python pushed:>{SINCE_DATE} fork:false",
+
+    # TypeScript agents with real APIs
+    f"langgraph stripe language:typescript pushed:>{SINCE_DATE} fork:false",
+    f"langchain stripe language:typescript pushed:>{SINCE_DATE} fork:false",
+    f"langgraph twilio language:typescript pushed:>{SINCE_DATE} fork:false",
 ]
 
 # ---------------------------------------------------------------------------
