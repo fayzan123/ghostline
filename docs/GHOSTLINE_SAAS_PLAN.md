@@ -1,535 +1,895 @@
-# Ghostline SaaS — Business & Technical Plan
+# Ghostline SaaS -- Business & Technical Plan
 
-## Executive Summary
+## 1. Executive Summary
 
-Ghostline is a working, opinionated GitHub-native lead generation and AI-powered outreach engine. The pipeline — discover, qualify, score, personalize, review, send, write-back — is already proven. The SaaS transformation is fundamentally a multi-tenancy and automation problem layered on top of that working core, not a rebuild.
+Ghostline is a GitHub-native lead generation and AI-powered outreach platform for B2B companies selling to developers. The pipeline -- discover, qualify, score for fit, personalize, review, send, write-back -- is proven and running in production. The SaaS transformation generalizes this pipeline so any company can describe their product and ideal customer, and Ghostline handles the rest: AI generates the GitHub search queries, AI generates a fit scoring rubric, the discovery engine finds developers building things relevant to the client's product, only developers scoring 3+ on fit get outreach, and every email references the developer's actual project.
 
-**Goal**: $10k/month MRR serving dev-tool companies who need to reach developers.
+**Two-sentence pitch**: "Describe your product and who you want to reach. Ghostline finds developers on GitHub who can actually use it, and sends them personalized emails referencing what they're building."
 
-**Differentiator**: Every competing tool (Apollo, Hunter, Instantly) uses job-title databases or LinkedIn scrapes. Ghostline uses GitHub — finding developers by what they are *actively building right now*, not who they say they are on a resume. No other SMB-priced tool does this end-to-end.
+**Goal**: $10k/month MRR within 9 months of first paying client.
+
+**Core differentiators**:
+1. **AI-powered fit scoring** -- Every lead is evaluated against a client-specific rubric before outreach. "We only email developers who can actually use your product." No other outreach tool does this.
+2. **AI-powered query generation** -- Clients describe their product and ICP in plain English. AI generates optimized GitHub search queries. Clients never touch search syntax.
+3. **GitHub-native discovery** -- Finds developers by what they are actively building right now, not by job title or LinkedIn profile. No other SMB-priced tool does this end-to-end.
 
 ---
 
-## Market Research
+## 2. Target Customer & Market
+
+### Who Uses Ghostline
+
+**Primary customer**: Any B2B company selling a product that developers integrate into their projects. This includes:
+
+- **Dev tools & SDKs** -- testing frameworks, CI/CD tools, code quality platforms
+- **APIs & infrastructure** -- payment APIs, messaging APIs, auth providers, databases
+- **Cloud & platform services** -- hosting, serverless, monitoring, logging
+- **Security products** -- vulnerability scanning, secrets management, agent governance
+- **Data & AI infrastructure** -- vector databases, model hosting, feature stores, observability
+- **Open-source companies** -- any OSS project with a commercial offering (the majority of modern dev tools)
+
+**The common thread**: These companies have a product that shows up in code. If a developer uses their product, evidence of that usage appears in GitHub repositories -- imports, API calls, config files, SDK references. That is what makes GitHub-native discovery work.
+
+**Who Ghostline does NOT serve well**: Companies selling to non-technical buyers (marketing SaaS, HR tools), companies whose product leaves no code-level footprint (consulting, design tools), and enterprise sales teams with deal sizes above $50k/year who need account-based marketing, not volume outreach.
+
+**Decision**: The target market is "any B2B company selling to developers" rather than narrowing to "dev tool companies" alone. The GitHub discovery model works for any product that leaves a code-level footprint. A payments API (Stripe competitor), a database (Supabase competitor), or a security scanner (Snyk competitor) all benefit equally. Narrowing to "dev tools" would exclude some of the highest-value customers. The broader framing also makes Ghostline's TAM significantly larger without requiring any architectural changes.
 
 ### Market Size
 
-The lead generation software market sits at $7.4B in 2025, growing to $16.2B by 2034 (9.1% CAGR). The sales intelligence market is $4.85B in 2025, projected at $10.25B by 2032. Developer tooling specifically is a $6.4–7.6B market growing at 16% CAGR, with 550+ devtool companies mapped in the 2025 DevTools Landscape report. GitHub itself reported 130M+ active developers as of 2025.
+The lead generation software market is $7.4B in 2025, growing to $16.2B by 2034 (9.1% CAGR). The sales intelligence market is $4.85B in 2025, projected at $10.25B by 2032. Developer tooling specifically is a $6.4-7.6B market growing at 16% CAGR, with 550+ devtool companies mapped in the 2025 DevTools Landscape report. GitHub itself reported 130M+ active developers as of 2025.
 
-**Conservative SAM for GitHub-native outreach**: Even placing 5,000–10,000 devtool companies paying $300–$600/month yields an $18M–$72M/year serviceable market — and the category is nascent with no dominant SMB player.
+**Conservative SAM for GitHub-native outreach**: 5,000-15,000 B2B companies selling developer-facing products, paying $300-$600/month, yields a $18M-$108M/year serviceable market. The category is nascent with no dominant SMB player.
 
 ### Direct Competitors (GitHub-Native)
 
-**Reo.dev** — Raised $4M seed in October 2025. Tracks 625M+ developer activity signals including GitHub interactions, package installs, and open-source telemetry. Customers include LangChain, N8N, Chainguard. However, Reo.dev is a *signal intelligence layer*, not an outreach tool. It identifies who is showing intent but does not automate personalized cold campaigns. It also requires companies to have existing product adoption to analyze — targeting companies with traction, not companies seeking net-new leads.
+**Reo.dev** -- Raised $4M seed in October 2025. Tracks 625M+ developer activity signals including GitHub interactions, package installs, and open-source telemetry. Customers include LangChain, N8N, Chainguard. However, Reo.dev is a signal intelligence layer, not an outreach tool. It identifies who is showing intent but does not automate personalized cold campaigns. It also requires companies to have existing product adoption to analyze -- targeting companies with traction, not companies seeking net-new leads. Pricing is custom and enterprise-oriented.
 
-**Common Room** — Signal intelligence with 50+ source integrations including GitHub. Contracts start at $15,000/year ($1,000–6,500/month). Community-first, not outbound-first. Completely out of reach for pre-Series A devtool startups.
+**Common Room** -- Signal intelligence with 50+ source integrations including GitHub. Contracts start at $15,000/year ($1,000-6,500/month). Community-first, not outbound-first. Completely out of reach for pre-Series A startups.
 
-**No known tool** combines all four of: (1) GitHub as a primary lead source, (2) contact enrichment for those developers, (3) AI-personalized outreach referencing real technical context, and (4) SMB-accessible pricing. This is the gap Ghostline fills.
+**No known tool** combines all four of: (1) GitHub as a primary lead source, (2) AI-powered fit scoring before any outreach, (3) AI-personalized emails referencing real technical context, and (4) SMB-accessible pricing. This is the gap Ghostline fills.
 
 ### Adjacent Competitors (Outreach Tools Without GitHub)
 
-| Tool | GitHub signals | Developer personas | Outreach automation | SMB pricing |
+| Tool | GitHub signals | Fit scoring | Outreach automation | SMB pricing |
 |---|---|---|---|---|
-| Apollo.io ($49–99/user/mo) | No | Partial (title only) | Yes | Yes |
+| Apollo.io ($49-99/user/mo) | No | No | Yes | Yes |
 | Hunter.io ($34+/mo) | No | No | No | Yes |
 | Lemlist ($69+/user/mo) | No | No | Yes | Yes |
-| Instantly.ai ($37–97/mo) | No | No | Yes | Yes |
-| Outreach.io ($100–160/user/mo) | No | No | Yes | No |
-| Common Room ($1,000+/mo) | Yes (signal only) | Yes | No | No |
-| Reo.dev (custom pricing) | Yes (signal only) | Yes | No | Partial |
+| Instantly.ai ($37-97/mo) | No | No | Yes | Yes |
+| Outreach.io ($100-160/user/mo) | No | No | Yes | No |
+| Common Room ($1,000+/mo) | Yes (signal only) | Partial | No | No |
+| Reo.dev (custom pricing) | Yes (signal only) | Partial | No | Partial |
 
-**Key weakness of Apollo**: 65–70% data accuracy, no GitHub signals, developer personas identified by job title only. Emails frequently hit spam. Generic outreach disconnected from the developer's actual technical work.
-
-### GTM Channels for Reaching Devtool Companies
-
-**Tier 1 (highest signal):**
-- **Hacker News (Show HN)** — Single highest-leverage launch channel for developer tools. Educational posts with genuine utility generate hundreds of qualified inbound leads within 24–48 hours.
-- **Product Hunt** — Best for first-mover visibility to tech-forward early adopters. Most valuable as a discovery channel.
-- **YC network** — YC has backed 480+ devtool companies. Being visible to alumni via the network or direct outreach reaches a concentrated ICP.
-
-**Tier 2 (community):**
-- Dev.to / Hashnode written content
-- Reddit (r/devops, r/startups, r/sideprojects)
-- Discord/Slack communities (Developer Marketing Alliance, Heavybit)
-
-**Tier 3 (outbound):**
-- **Use Ghostline on itself** — find devtool founders on GitHub and run outreach. Most credible GTM motion and a live product demo.
-- Developer conferences (DevRelCon, GitHub Universe, KubeCon)
+**Key weakness shared by all**: None of them score leads for product-market fit before sending. They find contacts and blast emails. Ghostline's fit scoring system means clients only email developers who can actually use their product, which is why reply rates will be structurally higher.
 
 ---
 
-## Business Model
+## 3. The Generalized Product -- End-to-End Flow
 
-### Pricing Tiers
+### Step 1: Client Provides Product Context
 
-**Starter — $299/month**
-- 1 GitHub search campaign (single ICP)
-- Up to 200 leads discovered/month
-- Up to 60 emails sent/month (2/day, ramped)
-- Dashboard: leads table, email status, pipeline stats
-- Client's own Gmail + app password
-- 1 custom email prompt configured at onboarding
+The client fills out a self-serve onboarding form in the dashboard with these fields:
 
-**Growth — $599/month**
-- Up to 3 concurrent campaigns (3 distinct ICPs or frameworks)
-- Up to 600 leads discovered/month
-- Up to 150 emails sent/month (5/day)
-- Dashboard with lead scoring, email preview, campaign analytics
-- 30-minute onboarding call to configure queries and email prompt
+1. **Product name** -- e.g., "Chox"
+2. **One-paragraph product description** -- What it does, who it's for, how developers integrate it. This becomes the seed for everything AI generates.
+3. **Integration method** -- How does a developer use this product in code? SDK import, API call, config file, CLI tool, GitHub Action? Examples of what it looks like in code (e.g., `from chox import ChoxGuard`, `stripe.Charge.create`).
+4. **Target developer profile** -- Free-text description of who should receive outreach. E.g., "Developers building AI agents with LangGraph or LangChain that call external APIs like Stripe, Twilio, or databases."
+5. **What makes a developer a good fit** -- What should be true about their project for the product to be useful? What makes a developer a bad fit? E.g., "Good fit: agent calls external APIs with side effects. Bad fit: pure RAG pipelines with no tool calls."
+6. **Competitor/overlap products** -- Products that are direct competitors or that the client does NOT want to target. These become blocklist entries.
+7. **Sender identity** -- Name, email, company, sign-off line, CTA preference (e.g., "reply to this email" vs. "try our free tier").
+8. **SMTP credentials** -- Gmail + app password (or Google Workspace).
 
-**Scale — $1,199/month**
-- Unlimited campaigns
-- Up to 1,500 leads/month
-- Up to 300 emails/month (10/day)
-- Slack/email digest of new leads and daily send summary
-- Dedicated Slack channel for prompt iteration and support
-- Weekly pipeline review, quarterly ICP refresh
+That is 8 fields. No unnecessary information. Every field feeds directly into query generation, rubric generation, or email generation. Nothing is collected that the system does not use.
 
-**Annual discount**: 20% off for annual prepay (e.g., $5,750/year for Growth). Improves cash flow, reduces churn risk.
+### Step 2: AI Generates Search Queries
 
-### Path to $10k MRR
+Given the product description, integration method, and target developer profile, Claude generates 10-20 optimized GitHub search queries. The AI understands GitHub search syntax -- it knows how to combine framework keywords with API references, how to use `pushed:>` date filters, how to exclude forks, how to target specific languages.
 
-| Scenario | Clients | Mix | MRR |
-|---|---|---|---|
-| All Growth | 17 | 17 × $599 | $10,183 |
-| Mixed | 16 | 8 × $299 + 5 × $599 + 3 × $1,199 | $10,184 |
-| Scale-anchored | 9 | 1 × $599 + 8 × $1,199 | $10,191 |
+Example: For Chox (AI agent governance), AI would generate:
+```
+langgraph stripe language:python pushed:>2026-02-21 fork:false
+langchain twilio language:python pushed:>2026-02-21 fork:false
+crewai tool language:python pushed:>2026-02-21 fork:false
+```
 
-**Practical target**: 10 Growth clients (~$6k MRR) + 3 Scale clients to cross $10k. Achievable in 6–9 months from first paying client.
+The client sees a preview of these queries and the first 10 repos they return. They can approve, edit, or request changes. After approval, queries are locked into their config.
+
+### Step 3: AI Generates Fit Scoring Rubric
+
+Given the product description and "what makes a good/bad fit" inputs, Claude generates a scoring rubric (the `SYSTEM_PROMPT` used in `score_leads.py`). This rubric is a detailed prompt that tells the scoring LLM exactly how to evaluate each lead for this specific client.
+
+The rubric includes:
+- How the product works and what integration looks like
+- The critical implementation requirement (what must be true for a developer to use this product)
+- Strong fit signals (raise score)
+- Poor fit signals (lower score)
+- 1-5 scoring scale with concrete definitions for each level
+
+This rubric is stored as `scoring_rubric` in the client's config. It is used every time a lead is scored.
+
+### Step 4: AI Generates Email Template Context
+
+Given the product description, sender identity, and CTA preference, Claude generates the email system prompt -- the equivalent of the current `_SYSTEM_PROMPT` in `email_generator.py`. This includes:
+- Product context (what to say about the client's product)
+- Email structure and constraints
+- Tone guidelines
+- Sign-off and footer
+- Banned words and patterns
+
+The client reviews and approves this prompt. It becomes `email_context_doc` in their config.
+
+### Step 5: Discovery Pipeline Runs Daily
+
+The scheduler triggers the client's pipeline. For each search query:
+1. GitHub search API returns matching repos
+2. Repos are deduplicated and filtered (blocklists, forks, tutorials)
+3. For each repo owner: profile is fetched, email is extracted (profile, commits, events)
+4. Lead data is assembled and written to storage
+
+### Step 6: Fit Scoring Runs on New Leads
+
+For each new lead:
+1. README is fetched (up to 3000 chars for scoring)
+2. Lead data + README is sent to Claude Haiku with the client's scoring rubric
+3. Claude returns a 1-5 score with one-sentence reasoning
+4. Score and reason are written back to the lead record
+
+**Only leads scoring 3+ proceed to outreach.** Leads scoring 1-2 are kept in the database (the client can see them) but never emailed. This is the core quality guarantee.
+
+### Step 7: Outreach Pipeline Runs on Qualified Leads
+
+For each lead scoring 3+:
+1. README is fetched (up to 2000 chars for email context)
+2. Lead data + README is sent to Claude Sonnet with the client's email system prompt
+3. Claude generates a personalized email referencing the developer's actual project
+4. Email appears in the client's dashboard review queue. Clients can approve, reject, or edit individual emails. **Default behavior: emails auto-send after 24 hours unless the client rejects them.** This means clients who want a hands-off experience get exactly that, while cautious clients can still review before anything goes out.
+5. Approved/auto-approved emails are sent via the client's SMTP, paced according to warm-up schedule
+
+### Step 8: Results Written Back
+
+- Lead status updated in Postgres
+- Google Sheet updated (if client uses sheet integration)
+- Pipeline run stats recorded (repos found, leads scored, emails sent)
 
 ---
 
-## MVP Scope
+## 4. Onboarding Flow (Fully Self-Serve)
 
-### What to Build First
+The entire onboarding is automated. No calls, no manual setup, no Ghostline team involvement. The client signs up and the system handles everything.
 
-The MVP is the smallest thing that lets you take on a paying client without embarrassing yourself. You do not need a polished dashboard or self-serve onboarding to charge the first $299.
+### Self-Serve Onboarding Steps
 
-**MVP (4–6 weeks part-time):**
+1. **Stripe Checkout** -- Client selects a plan and enters payment info. Stripe creates the subscription.
+2. **Magic link auth** -- Client receives a login link via email (Clerk). Lands in the dashboard.
+3. **Product context form** -- The 8 fields from Section 3, Step 1. Clean, guided form with placeholder examples for each field. Tooltips explain what each field is used for. This is the only manual input the client ever provides.
+4. **AI generation preview** -- System immediately generates:
+   - Search queries (10-20)
+   - Fit scoring rubric
+   - Sample email system prompt
 
-1. **Multi-tenant config layer** — A database table (or per-client JSON config for week 1) holding per-client: search queries, email context doc, SMTP credentials, Google Sheet ID, GitHub token
-2. **Scheduled automation** — Cloud-hosted scheduler runs each client's pipeline daily, no manual triggering
-3. **Per-client data isolation** — Each client writes to their own Google Sheet; credentials stored encrypted
-4. **Per-client email prompts** — The system prompt and product context (currently `CHOX_CONTEXT.md`) become per-client config fields loaded at runtime
-5. **Manual onboarding** — You set up each client by hand: 30–60 minutes per client, fine for the first 10
+   All three are shown in a preview screen. The client can review and optionally edit any of them, or accept the defaults. Most clients will accept defaults -- the AI generation is good enough.
+5. **Dry run** -- System discovers 10 repos using the generated queries, scores 5 leads, generates 2 sample emails. Client sees real results from their own config before anything goes live. This builds confidence and lets them catch any obvious issues.
+6. **Credential input** -- Gmail SMTP + app password with a guided setup walkthrough (inline instructions with screenshots for enabling 2FA and generating app passwords). Live validation: system sends a test email to the client's own address to confirm SMTP works.
+7. **Go live** -- Client clicks "Start Pipeline". First discovery run begins within 1 hour. Warm-up schedule starts automatically.
 
-**Defer to Phase 2:**
-- Self-serve signup and web onboarding
-- Full React dashboard
-- Stripe billing integration
-- Automated client provisioning
-- Follow-up sequences
-- Reply tracking
+**Total time from signup to live pipeline: ~15 minutes.**
 
-**The minimum to charge**: Parameterize config for per-client values, deploy to a cloud VPS on a schedule, store credentials securely. You can run the first 2–3 clients manually while building the multi-tenant layer.
+No onboarding calls. No manual client config by Ghostline. No waiting for approval from the Ghostline team. The client is in control from start to finish.
+
+### Automated Retention
+
+- **Weekly digest email**: Automated email showing last week's pipeline stats -- leads discovered, leads scored 3+, emails sent, reply rate (once tracking is in place). Sent every Monday morning.
+- **Smart alerts**: Email notification if pipeline encounters errors (SMTP failure, GitHub rate limit exhaustion, 0 leads found for 3 consecutive runs). Client can fix credential issues directly in the dashboard.
+- **Usage warnings**: Email when approaching plan limits (80% of leads/month, 80% of emails/month) with upgrade CTA.
 
 ---
 
-## Technical Architecture
+## 5. AI Query Engine
+
+### How It Works
+
+The query generation system takes three inputs from the client:
+1. Product description (what the product does)
+2. Integration method (what it looks like in code)
+3. Target developer profile (who should get outreach)
+
+These are sent to Claude with a metaprompt that instructs it to generate GitHub search queries. The metaprompt encodes knowledge of GitHub search syntax, best practices, and common patterns.
+
+### The Metaprompt (Stored Centrally, Not Per-Client)
+
+```
+You are a GitHub search query specialist. Given a product description, integration
+method, and target developer profile, generate 10-20 GitHub search queries that will
+find developers who could use this product.
+
+GITHUB SEARCH SYNTAX RULES:
+- Use "pushed:>{date}" to find recently active repos (last 30 days)
+- Use "fork:false" to exclude forks
+- Use "language:{lang}" to target specific languages
+- Combine framework keywords with API/library keywords
+- Use quoted strings for exact import patterns: "from stripe import"
+- Use + to combine terms: langchain+stripe
+
+QUERY DESIGN PRINCIPLES:
+- Start with the highest-signal combinations: the client's target framework + the
+  client's product or competing/complementary products
+- Include queries for the client's product name itself (find existing users)
+- Include queries for competing/complementary products (find potential switchers)
+- Include queries for the underlying patterns the product addresses (find developers
+  with the problem even if they haven't found a solution)
+- Cover the primary programming language and secondary languages if applicable
+- Aim for queries that return 50-500 repos each (too broad = noise, too narrow = no results)
+
+OUTPUT FORMAT:
+Return a JSON array of query strings. No explanations, just the queries.
+```
+
+### Query Optimization Loop
+
+After initial generation, Ghostline tests each query against the GitHub search API (search only, no lead extraction) and reports back:
+- Total results count per query
+- Sample of 5 repo names/descriptions per query
+
+Queries returning 0 results are dropped. Queries returning 10,000+ results are narrowed. This happens during onboarding (live on the call for Phase 1, automated preview for Phase 2).
+
+### Query Refresh
+
+Queries use `pushed:>{SINCE_DATE}` where `SINCE_DATE` is recalculated on each run (30 days ago). No manual date updates needed. Quarterly, the system can re-run query generation with the client's updated product context to catch new frameworks or patterns that have emerged.
+
+---
+
+## 6. Fit Scoring System
+
+This is Ghostline's most important differentiator. It is the reason clients will pay a premium over generic outreach tools, and the reason reply rates will be structurally higher.
+
+### How It Works Today (score_leads.py)
+
+The current system, built for Chox:
+1. Reads all leads from Google Sheet
+2. For each unscored lead, fetches the repo README (up to 3000 chars)
+3. Sends lead data + README to Claude Haiku with a hardcoded Chox-specific rubric
+4. Claude returns a 1-5 score with one-sentence reasoning
+5. Score and reason are written back to the sheet
+
+### How It Works in the SaaS Version
+
+The system is identical in mechanics but generalized:
+1. The rubric (`SYSTEM_PROMPT` in `score_leads.py`) becomes **per-client**, stored as `scoring_rubric` in `client_configs`
+2. The rubric is **AI-generated** from the client's product description and fit criteria during onboarding
+3. Scoring runs **automatically** after discovery, as part of the daily pipeline
+4. Only leads scoring **3+ proceed to outreach**. This threshold is fixed -- not client-configurable. The whole point is quality control. If a client wants to lower the bar, they should adjust their rubric, not the threshold.
+
+### AI Rubric Generation
+
+Given a client's product description and good/bad fit criteria, Claude generates a rubric following this template structure (derived from the working Chox rubric):
+
+```
+RUBRIC TEMPLATE STRUCTURE:
+1. HOW {PRODUCT} WORKS -- 2-3 sentences explaining the product and integration
+2. CRITICAL IMPLEMENTATION REQUIREMENT -- The one thing that MUST be true for a
+   developer to use this product
+3. STRONG FIT SIGNALS -- 4-6 bullet points that raise the score
+4. POOR FIT SIGNALS -- 4-6 bullet points that lower the score
+5. SCORING RUBRIC (1-5) -- One sentence per score level with concrete criteria
+6. OUTPUT FORMAT -- JSON with score and reason
+```
+
+The Chox rubric in `score_leads.py` is the gold standard reference. It works because it is specific and opinionated. The rubric generation prompt must produce rubrics of equal specificity for any product.
+
+### Scoring Model Choice
+
+**Use Claude Haiku (claude-haiku-4-5) for scoring.** It is fast, cheap ($0.001/lead at current pricing), and accurate enough for a 1-5 classification task. Sonnet would be overkill. At 500 leads/month per client and 20 clients, that is 10,000 scoring calls/month at roughly $10 total. Negligible.
+
+### Scoring Data Sent to Claude
+
+For each lead, the scoring call includes:
+- `repo_name`, `repo_description`, `repo_stars`
+- `frameworks_detected`, `risk_apis_detected` (from code search during discovery)
+- `profile_bio`, `profile_company`, `profile_location`
+- `readme` (up to 3000 chars)
+
+This is the same data structure as the current `score_lead()` function in `score_leads.py`. The `relevant` dict construction does not change.
+
+### Why This Matters
+
+Every other outreach tool sends emails to everyone who matches a surface-level filter (job title, company size, technology tag). Ghostline reads the developer's actual code and README, evaluates whether the client's product is genuinely relevant to what they are building, and only emails developers where the answer is "yes, probably" or better. This is why reply rates will be higher, and why clients will stay.
+
+---
+
+## 7. Discovery Pipeline -- Multi-Client Architecture
+
+### Current Architecture (Single Client)
+
+```
+SEARCH_QUERIES (hardcoded in config.py)
+    -> discover_repos() fetches repos from GitHub Search API
+    -> qualify/score module evaluates repos
+    -> email extraction from profiles/commits/events
+    -> leads written to Google Sheet
+```
+
+### SaaS Architecture (Multi-Client)
+
+```
+Per-client pipeline run:
+    client_config loaded from Postgres
+        -> config.search_queries (AI-generated, stored as JSONB)
+        -> discover_repos(client_config) fetches repos
+        -> blocklist filtering (global + client-specific)
+        -> profile enrichment + email extraction
+        -> fit scoring with client's scoring_rubric
+        -> leads written to Postgres (client_id scoped)
+        -> leads synced to client's Google Sheet (optional)
+        -> qualified leads (score 3+) queued for outreach
+```
+
+### Key Refactoring
+
+The `discover_repos()` function in `discovery/discover.py` currently imports `SEARCH_QUERIES` and `PAGES_PER_QUERY` from `shared/config.py` at module level. In the SaaS version:
+
+- `discover_repos()` accepts a `ClientConfig` parameter
+- Search queries come from `config.search_queries`
+- `GitHubClient` is instantiated with the client's own GitHub token
+- Blocklists are merged: `GLOBAL_BLOCKLIST + config.custom_blocklists`
+
+The `GitHubClient` class in `discovery/github_client.py` currently reads `GITHUB_HEADERS` from `shared/config.py` at module level. In the SaaS version:
+
+- `GitHubClient.__init__()` accepts a `github_token` parameter
+- Headers are constructed from the passed token, not from a global
+
+### Platform Expansion Path (Future)
+
+GitHub is the core platform and the only one to build for now. The architecture is designed so additional discovery sources can be added later without rewriting the pipeline:
+
+**Potential future sources** (do not build these now):
+- **npm/PyPI download signals** -- If a client's product is an npm package, find repos that `npm install` it
+- **Stack Overflow** -- Find developers asking/answering questions about the client's technology. Extract GitHub profiles from SO profiles.
+- **Docker Hub** -- Find developers pulling the client's Docker image
+- **GitHub Discussions/Issues** -- Find developers asking questions in the client's own repo (for companies with existing OSS presence)
+
+**How to keep the door open**: The `ClientConfig` includes a `discovery_sources` field (default: `["github_search"]`). The pipeline runner dispatches to the appropriate discovery module based on this field. For now only `github_search` is implemented. Adding `npm_downloads` or `stackoverflow` later means writing a new discovery module and adding it to the dispatch.
+
+---
+
+## 8. Outreach Pipeline -- Per-Client Email Personalization
+
+### Current Architecture
+
+`email_generator.py` loads `CHOX_CONTEXT.md` from disk at import time and hardcodes it into `_SYSTEM_PROMPT`. The entire system prompt is Chox-specific: product description, email structure, tone, sign-off, banned words.
+
+### SaaS Architecture
+
+The system prompt is built dynamically at call time from the client's `email_context_doc` field:
+
+```python
+def _build_system_prompt(config: ClientConfig) -> str:
+    return f"""\
+You are a cold email copywriter for {config.product_name}.
+You write short, personalized outreach emails to developers.
+
+PRODUCT CONTEXT:
+{config.email_context_doc}
+
+EMAIL CONSTRAINTS:
+{GLOBAL_EMAIL_CONSTRAINTS}  # shared across all clients
+
+SIGN-OFF:
+{config.sender_signoff}
+
+TONE:
+{GLOBAL_TONE_GUIDELINES}  # shared across all clients
+
+BANNED WORDS:
+{GLOBAL_BANNED_WORDS}  # shared across all clients
+"""
+```
+
+Some parts of the email prompt are global (banned words, formatting rules, parse format) and some are per-client (product context, sign-off, CTA). This split avoids duplicating quality controls across every client config.
+
+### Email Generation Flow
+
+1. Load qualified leads (score 3+, not yet contacted) for the client
+2. For each lead, fetch README via `fetch_readme()` using the client's GitHub token
+3. Build per-client system prompt from `config.email_context_doc`
+4. Build per-lead user prompt from lead data + README
+5. Call Claude Sonnet (creative task, needs the better model)
+6. Parse response into subject + body
+7. Queue for review
+
+### Email Review & Auto-Send
+
+Emails are fully automated by default. The client does not need to review anything for the system to work.
+
+**How it works**:
+- Generated emails land in the client's dashboard review queue
+- **Auto-send after 24 hours** unless the client explicitly rejects an email
+- Clients who want to review can log into the dashboard and approve/reject/edit before the 24-hour window closes
+- Clients who want fully hands-off just ignore the queue and emails go out on schedule
+
+**Safety guardrails (automated, no human intervention needed)**:
+- Warm-up pacing enforced automatically (5/day week 1-2, scaling to 20/day by week 7+)
+- Auto-pause if weekly bounce rate exceeds 5%
+- Auto-pause if SMTP credentials stop working (with email alert to client)
+- Fit scoring at 3+ threshold ensures only relevant leads get emailed
+
+**Dashboard setting**: Clients can toggle between "auto-send" (default) and "manual review required" modes in settings. Most clients will leave auto-send on.
+
+---
+
+## 9. Technical Architecture
 
 ### Overview
 
-Three layers: the pipeline engine (existing Python code, minimal changes), a multi-tenant orchestration layer (new), and a web dashboard (new).
+Three layers: the pipeline engine (existing Python code, parameterized), a multi-tenant orchestration layer (new), and a self-serve web dashboard (new).
 
 ```
-[Web Dashboard]            [Admin CLI]
-        |                       |
+[Web Dashboard + Self-Serve Onboarding]
+        |
 [Orchestration: Client Registry + Job Scheduler]
         |
 [Per-Client Pipeline Runner]
-  client_id → ClientConfig → runs pipeline
+  client_id -> ClientConfig -> runs pipeline stages
         |
-[Existing Pipeline Modules]
-  discover → qualify → score → outreach graph
+[Pipeline Stages]
+  discover -> filter -> enrich -> score_fit -> generate_emails -> review -> send
         |
 [Per-Client Isolated Storage]
-  PostgreSQL (leads, runs, emails) + Client's Google Sheet
+  PostgreSQL (all data, client_id scoped) + Client's Google Sheet (optional sync)
 ```
 
-### Multi-Tenancy Model
+### ClientConfig Dataclass
 
-**Database tables (PostgreSQL):**
-
-```
-clients
-  id (uuid), name, slug, plan, status, created_at
-
-client_configs
-  client_id (fk)
-  github_token_enc          — encrypted
-  smtp_username
-  smtp_password_enc         — encrypted
-  anthropic_api_key_enc     — encrypted (or use a central key)
-  sender_name, sender_email
-  spreadsheet_id
-  service_account_json_enc  — encrypted
-  search_queries            — jsonb array of GitHub query strings
-  email_context_doc         — per-client equivalent of CHOX_CONTEXT.md
-  batch_size, max_emails_per_day
-  tier1_threshold, tier2_threshold
-  custom_blocklists         — jsonb, additive overrides to global blocklists
-  icp_description           — human-readable, internal reference
-
-pipeline_runs
-  id, client_id, started_at, finished_at, status
-  repos_discovered, leads_added, emails_sent, errors (jsonb)
-
-leads
-  id, client_id, github_username, email, full_name
-  repo_url, repo_name, repo_stars, lead_score, lead_tier
-  frameworks_detected, profile_company
-  contacted (bool), contacted_at, response_status, discovered_at
-
-email_drafts
-  id, client_id, lead_id, subject, body
-  status (pending/approved/sent/bounced/rejected)
-  sent_at, send_error
-```
-
-All encrypted fields use Fernet symmetric encryption (`cryptography` library). The key lives in the app's environment, never in the database.
-
-### Pipeline Parameterization
-
-The core change: replace module-level globals with a `ClientConfig` dataclass passed into every pipeline function.
-
-**Before (current):**
-```python
-# shared/config.py reads from .env
-SEARCH_QUERIES = [...]
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-```
-
-**After (SaaS):**
 ```python
 @dataclass
 class ClientConfig:
+    # Identity
     client_id: str
-    search_queries: list[str]
+    client_name: str
+    product_name: str
+    plan: str  # "starter" | "growth" | "scale"
+
+    # Discovery
+    search_queries: list[str]           # AI-generated GitHub search queries
+    discovery_sources: list[str]        # ["github_search"] for now
+    custom_blocklists: dict             # additive overrides to global blocklists
+    pages_per_query: int                # default 10
+    max_leads_per_run: int              # tier-dependent
+
+    # Fit scoring
+    scoring_rubric: str                 # AI-generated system prompt for scoring
+    scoring_model: str                  # "claude-haiku-4-5-20251001"
+    fit_threshold: int                  # 3 (fixed, not client-configurable)
+
+    # Email generation
+    email_context_doc: str              # AI-generated email system prompt
+    sender_name: str
+    sender_email: str
+    sender_signoff: str                 # full sign-off block
+
+    # Credentials (decrypted at runtime)
     github_token: str
     smtp_username: str
     smtp_password: str
-    email_context_doc: str
-    max_emails_per_day: int
-    batch_size: int
-    # ... all other per-client params
 
-def discover_repos(client: GitHubClient, config: ClientConfig) -> list[dict]:
-    for query in config.search_queries: ...
+    # Pacing
+    max_emails_per_day: int             # tier-dependent
+    warm_up_week: int                   # current warm-up week (affects daily limit)
+    batch_size: int                     # default 10
+
+    # Storage
+    spreadsheet_id: str                 # Google Sheet ID (optional)
+    service_account_json: str           # encrypted service account JSON
 ```
 
-`email_generator.py` currently loads `CHOX_CONTEXT.md` from disk at import time. In the SaaS version the system prompt is built dynamically at call time from `config.email_context_doc`.
+### Database Schema (PostgreSQL)
 
-`OutreachState` gains a `client_config: ClientConfig` field so all LangGraph nodes read from state rather than globals.
+```sql
+-- Core multi-tenancy
+CREATE TABLE clients (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    slug TEXT UNIQUE NOT NULL,
+    product_name TEXT NOT NULL,
+    plan TEXT NOT NULL DEFAULT 'starter',
+    status TEXT NOT NULL DEFAULT 'active',  -- active, paused, churned
+    created_at TIMESTAMPTZ DEFAULT now(),
+    onboarded_at TIMESTAMPTZ
+);
 
-### Key Files to Refactor
+CREATE TABLE client_configs (
+    client_id UUID PRIMARY KEY REFERENCES clients(id),
 
-| File | Change |
-|---|---|
-| `shared/config.py` | Extract all hardcoded globals into `ClientConfig` dataclass |
-| `discovery/discover.py` | Accept `config: ClientConfig`, use `config.search_queries` |
-| `outreach/email_generator.py` | Build system prompt dynamically from `config.email_context_doc` |
-| `outreach/outreach_graph.py` | Add `client_config` to `OutreachState`; nodes read from state |
-| `outreach/outreach_state.py` | Add `client_config` field to `OutreachState` TypedDict |
-| `outreach/outreach_config.py` | Convert to `ClientOutreachConfig` dataclass derived from `ClientConfig` |
+    -- Discovery
+    search_queries JSONB NOT NULL DEFAULT '[]',
+    discovery_sources JSONB NOT NULL DEFAULT '["github_search"]',
+    custom_blocklists JSONB DEFAULT '{}',
+    pages_per_query INT DEFAULT 10,
+    max_leads_per_run INT DEFAULT 500,
+
+    -- Fit scoring
+    scoring_rubric TEXT NOT NULL,
+    scoring_model TEXT DEFAULT 'claude-haiku-4-5-20251001',
+
+    -- Email generation
+    email_context_doc TEXT NOT NULL,
+    sender_name TEXT NOT NULL,
+    sender_email TEXT NOT NULL,
+    sender_signoff TEXT NOT NULL,
+
+    -- Credentials (Fernet encrypted)
+    github_token_enc BYTEA NOT NULL,
+    smtp_username TEXT NOT NULL,
+    smtp_password_enc BYTEA NOT NULL,
+    anthropic_api_key_enc BYTEA,  -- NULL = use central key
+    spreadsheet_id TEXT,
+    service_account_json_enc BYTEA,
+
+    -- Pacing
+    max_emails_per_day INT DEFAULT 10,
+    warm_up_started_at TIMESTAMPTZ,
+    batch_size INT DEFAULT 10,
+
+    -- Product context (raw inputs, kept for re-generation)
+    product_description TEXT,
+    integration_method TEXT,
+    target_developer_profile TEXT,
+    good_fit_criteria TEXT,
+    bad_fit_criteria TEXT,
+    competitors TEXT
+);
+
+-- Pipeline execution
+CREATE TABLE pipeline_runs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    client_id UUID NOT NULL REFERENCES clients(id),
+    started_at TIMESTAMPTZ DEFAULT now(),
+    finished_at TIMESTAMPTZ,
+    status TEXT DEFAULT 'running',  -- running, completed, failed
+    repos_discovered INT DEFAULT 0,
+    leads_added INT DEFAULT 0,
+    leads_scored INT DEFAULT 0,
+    leads_qualified INT DEFAULT 0,  -- score 3+
+    emails_generated INT DEFAULT 0,
+    emails_sent INT DEFAULT 0,
+    errors JSONB DEFAULT '[]'
+);
+
+-- Lead storage
+CREATE TABLE leads (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    client_id UUID NOT NULL REFERENCES clients(id),
+    github_username TEXT NOT NULL,
+    email TEXT,
+    full_name TEXT,
+    repo_url TEXT,
+    repo_name TEXT,
+    repo_description TEXT,
+    repo_stars INT DEFAULT 0,
+    repo_language TEXT,
+    frameworks_detected TEXT,
+    risk_apis_detected TEXT,
+    profile_bio TEXT,
+    profile_company TEXT,
+    profile_location TEXT,
+    profile_blog TEXT,
+    twitter_handle TEXT,
+    followers INT DEFAULT 0,
+    public_repos INT DEFAULT 0,
+    email_source TEXT,
+
+    -- Fit scoring
+    fit_score INT,                      -- 1-5
+    fit_reason TEXT,                     -- one-sentence explanation
+
+    -- Outreach status
+    contacted BOOLEAN DEFAULT FALSE,
+    contacted_at TIMESTAMPTZ,
+    response_status TEXT DEFAULT 'none',
+
+    -- Metadata
+    discovered_at TIMESTAMPTZ DEFAULT now(),
+    run_id UUID REFERENCES pipeline_runs(id),
+
+    UNIQUE(client_id, github_username, repo_name)
+);
+
+CREATE INDEX idx_leads_client_fit ON leads(client_id, fit_score) WHERE fit_score >= 3;
+CREATE INDEX idx_leads_client_uncontacted ON leads(client_id) WHERE contacted = FALSE AND fit_score >= 3;
+
+-- Email tracking
+CREATE TABLE email_drafts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    client_id UUID NOT NULL REFERENCES clients(id),
+    lead_id UUID NOT NULL REFERENCES leads(id),
+    subject TEXT NOT NULL,
+    body TEXT NOT NULL,
+    status TEXT DEFAULT 'pending',  -- pending, approved, rejected, sent, bounced, failed
+    edited_body TEXT,
+    sent_at TIMESTAMPTZ,
+    send_error TEXT,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- AI generation audit trail
+CREATE TABLE ai_generations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    client_id UUID NOT NULL REFERENCES clients(id),
+    generation_type TEXT NOT NULL,  -- 'queries', 'rubric', 'email_prompt', 'fit_score', 'email'
+    input_summary TEXT,
+    output TEXT,
+    model TEXT,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### Encryption
+
+All sensitive fields (tokens, passwords, service account JSON) use Fernet symmetric encryption from the `cryptography` library. The encryption key lives in the application's environment variable (`GHOSTLINE_ENCRYPTION_KEY`), never in the database. Decryption happens at pipeline runtime when `ClientConfig` is loaded.
 
 ### Scheduling and Automation
 
-**Recommended**: Celery + Redis on a single VPS (Hetzner CX21, ~$6/month).
+**Recommended**: Celery + Redis on a single VPS.
 
-- Celery Beat triggers `run_pipeline_for_client(client_id)` for each active client daily, staggered by 30 minutes to distribute GitHub API load
-- Each task loads `ClientConfig` from Postgres, instantiates `GitHubClient` with client's token, runs the full pipeline
-- Redis is the broker (Upstash free tier works for MVP)
+- Celery Beat triggers `run_pipeline_for_client(client_id)` for each active client daily, staggered by 30 minutes
+- Each task loads `ClientConfig` from Postgres, decrypts credentials, instantiates a fresh `GitHubClient`, runs the full pipeline
+- Redis is the broker (Upstash free tier for MVP, local Redis at scale)
 
-**Phase 1 alternative**: GitHub Actions matrix strategy — one workflow per client on a schedule, config loaded from Actions secrets. Free for small client counts. Migrate to Celery at 5+ clients.
+**Warm-up schedule** (automatic, based on `warm_up_started_at`):
 
-**Example stagger (10 clients):**
+| Week | Emails/day |
+|---|---|
+| 1-2 | 5 |
+| 3-4 | 10 |
+| 5-6 | 15 |
+| 7+ | 20 (or plan maximum) |
+
+The pipeline checks `warm_up_started_at` at runtime and applies the correct daily limit. No manual intervention.
+
+**Stagger example (10 clients):**
 ```
 Client 1: 06:00 UTC daily
 Client 2: 06:30 UTC daily
 Client 3: 07:00 UTC daily
 ...
+Client 10: 10:30 UTC daily
 ```
 
-**Human-in-the-loop in SaaS context**: The current terminal review (A/R/E/B/Q) is incompatible with fully automated SaaS. For Phase 1, you review and approve all client emails before they send (ensures quality, costs your time). For Phase 2, the web dashboard provides a review UI replacing the terminal CLI.
-
-### Web Dashboard — Recommended Stack
+### Web Dashboard -- Recommended Stack
 
 | Layer | Technology | Rationale |
 |---|---|---|
-| Frontend | Next.js 14 + TypeScript + Tailwind + shadcn/ui | Professional dashboard UI in hours, zero-config Vercel deploy |
+| Frontend | Next.js 14 + TypeScript + Tailwind + shadcn/ui | Professional dashboard in hours, zero-config Vercel deploy |
 | Backend API | FastAPI (Python) | Same language as pipeline, async-first, automatic OpenAPI docs |
-| Database | PostgreSQL (Supabase or Railway managed) | Reliable, integrates with everything |
+| Database | PostgreSQL (Supabase or Railway managed) | Reliable, built-in row-level security potential |
 | Auth | Clerk (magic link or Google OAuth) | Zero password management, works in minutes |
 | Hosting (frontend) | Vercel (free tier) | Zero-config, global CDN |
-| Hosting (backend) | Render or Railway | Simple Python deployment |
+| Hosting (backend + pipeline) | Single VPS (Hetzner CX21, 2 vCPU, 4GB RAM) | $6/month, runs FastAPI + Celery + Redis |
 | Job queue | Celery + Redis (Upstash free tier) | Native Python, reliable scheduling |
 
 **Dashboard pages (Phase 2):**
-1. **Leads table** — paginated, filterable by tier/contacted/score, sortable
-2. **Pipeline runs** — per-campaign history with stats (repos found, leads added, emails sent)
-3. **Emails sent** — subject, recipient, sent_at, status
-4. **Review queue** — pending email drafts with approve/reject UI (replaces terminal CLI)
-5. **Campaign config** — read-only view of search queries and ICP description
-6. **Settings** — SMTP status, plan, usage vs limit
+1. **Leads table** -- paginated, filterable by fit score / contacted / date, sortable. Shows fit_score and fit_reason inline.
+2. **Pipeline runs** -- per-run history with stats (repos found, leads scored, qualified, emails sent).
+3. **Email review queue** -- pending drafts with approve/reject/edit. Replaces terminal CLI.
+4. **Emails sent** -- subject, recipient, sent_at, status (sent/bounced/failed).
+5. **Campaign config** -- read-only view of search queries, scoring rubric, email prompt. "Re-generate" button for each.
+6. **Settings** -- SMTP status, plan, usage vs. limits, warm-up progress.
 
 ### Data Isolation
 
-Three levels:
-
-1. **Database**: Every table has `client_id` FK. All queries scoped `WHERE client_id = ?`. No cross-client queries.
-2. **Google Sheets**: Each client has their own `spreadsheet_id` in `client_configs`.
+1. **Database**: Every table has `client_id` FK. All queries scoped `WHERE client_id = ?`. No cross-client queries ever.
+2. **Google Sheets**: Each client has their own `spreadsheet_id`. Sheet sync is optional and additive (Postgres is the source of truth).
 3. **Email sending**: Each client's SMTP credentials stored encrypted, used exclusively for their outreach.
-4. **LangGraph checkpoints**: Per-client checkpoint files (`ghostline_outreach_{client_id}.db`) or Postgres-backed LangGraph checkpointer.
+4. **API keys**: Central Anthropic API key for MVP. Per-client keys as an option for Scale tier.
 
 ---
 
-## Search Expansion Strategy
+## 10. Business Model & Pricing
 
-The current `SEARCH_QUERIES` is hardcoded for LangChain/LangGraph. `client_configs.search_queries` becomes a JSON array of GitHub query strings crafted per client during onboarding.
+### Pricing Tiers
 
-### Query Examples by ICP
+**Starter -- $299/month**
+- 1 campaign (single ICP / query set)
+- Up to 200 leads discovered/month
+- Up to 60 emails sent/month (warm-up paced)
+- AI-generated queries, rubric, and email prompt
+- Fit scoring on all leads (score 3+ get outreach)
+- Dashboard: leads table, email queue, pipeline stats
+- Google Sheet sync
+- Email support
 
-**"Developers using Stripe API in Python agents":**
-```
-stripe language:python pushed:>2025-01-01 fork:false
-stripe+agent language:python pushed:>2025-01-01 fork:false
-"stripe.Charge.create" language:python pushed:>2025-01-01 fork:false
-```
+**Growth -- $599/month**
+- Up to 3 campaigns (3 distinct ICPs or frameworks)
+- Up to 600 leads discovered/month
+- Up to 150 emails sent/month
+- Everything in Starter plus:
+- Multi-campaign management (different ICPs, different query sets)
+- Weekly email digest with pipeline stats
+- Priority email support
 
-**"React developers building fintech apps":**
-```
-react+plaid language:typescript pushed:>2025-01-01 fork:false
-react+stripe language:typescript pushed:>2025-01-01 fork:false
-"usePlaidLink" pushed:>2025-01-01 fork:false
-```
+**Scale -- $1,199/month**
+- Unlimited campaigns
+- Up to 1,500 leads/month
+- Up to 300 emails/month
+- Everything in Growth plus:
+- Quarterly auto-refresh of queries and rubric (system re-generates based on latest GitHub trends)
+- API access: programmatic lead export, webhooks on new qualified leads
+- Priority support (24-hour response SLA)
 
-**"Developers using Pinecone":**
-```
-pinecone language:python pushed:>2025-01-01 fork:false
-"from pinecone import" language:python pushed:>2025-01-01 fork:false
-```
+**Annual discount**: 20% off for annual prepay. Improves cash flow, reduces churn.
 
-### Configurable Scoring
+### Cost Structure Per Client
 
-`TIER_A_IMPORTS`, `TIER_B_IMPORTS`, `TIER_C_IMPORTS` in `shared/config.py` are currently LangChain-specific. Each client config stores equivalent tier arrays for their target technology as JSON. You define these during onboarding; a Phase 2 UI exposes them to clients.
+| Item | Cost/month |
+|---|---|
+| Fit scoring (Claude Haiku, ~500 leads) | ~$0.50 |
+| Email generation (Claude Sonnet, ~60 emails) | ~$1.80 |
+| Query generation (one-time, amortized) | ~$0.01 |
+| Rubric generation (one-time, amortized) | ~$0.01 |
+| **Total AI cost per Starter client** | **~$2.30** |
+| **Total AI cost per Growth client** | **~$6.50** |
+| **Total AI cost per Scale client** | **~$15.00** |
 
-### Blocklist Customization
+**Gross margin per client**: 97-99%. The AI costs are negligible relative to pricing.
 
-Global blocklists (`REPO_NAME_BLOCKLIST`, `DESCRIPTION_BLOCKLIST`) remain as defaults with per-client additive overrides stored in `client_configs.custom_blocklists`.
+### Path to $10k MRR
 
-### Code Search Verification
+| Scenario | Clients | Mix | MRR |
+|---|---|---|---|
+| All Growth | 17 | 17 x $599 | $10,183 |
+| Mixed | 16 | 8 x $299 + 5 x $599 + 3 x $1,199 | $10,184 |
+| Scale-anchored | 9 | 1 x $599 + 8 x $1,199 | $10,191 |
 
-`github_client.py` already has `search_code()`. For clients with specific import patterns, add an optional post-discovery code-search step confirming the exact import exists before scoring. Costs 1 extra API call per repo but dramatically improves precision for narrow ICPs.
-
----
-
-## Client Onboarding
-
-### Phase 1: Assisted Onboarding (White-Glove)
-
-Every new client gets a 45-minute onboarding call. This is intentional — it justifies pricing, ensures quality, and teaches you what to automate later.
-
-**Pre-call homework sent to client:**
-- Create or identify the Gmail they'll send from; enable 2FA; generate an app password
-- Get an Anthropic API key (or you supply centrally — see cost section)
-- Write a brief ICP doc: who do they want to reach, what frameworks does that developer use, what problem does their product solve
-
-**Onboarding call (45 min):**
-1. Review ICP doc, clarify target developer profile (10 min)
-2. Design search queries together, test 2–3 live on GitHub.com to validate quality (15 min)
-3. Write email context doc: product description, value prop, tone, CTA (15 min)
-4. Collect credentials: Gmail app password, GitHub token, Google Sheet ID (5 min)
-
-**Post-call by you (30 min):**
-1. Create client record in database
-2. Configure `ClientConfig`
-3. Set up Google Sheet with correct headers
-4. Run dry-run pipeline, share sample leads with client
-5. Enable scheduled pipeline
-
-**Retention**: Send a weekly digest email (automated) showing last week's pipeline stats — leads discovered, emails sent, response rate. Keeps clients engaged between logins.
-
-### Phase 2: Self-Serve Onboarding
-
-After 5–10 clients, partially automate:
-
-1. Stripe Checkout → client selects plan, enters email
-2. Magic link auth → client lands in dashboard
-3. ICP wizard → target technology (dropdown + custom), developer type, product description
-4. Query preview → system suggests 3–5 queries, client edits
-5. Credential input → Gmail SMTP + GitHub token with live validation
-6. Email context draft → Claude pre-populates from product description, client reviews
-7. Dry run → system runs 10-repo preview, shows sample leads in dashboard
-8. Go live → client clicks "Start Pipeline", first run within 24 hours
-
----
-
-## GTM and Client Acquisition
-
-### First 10 Clients Strategy
-
-**Step 1: First 3 clients — manual outreach, pilot pricing (weeks 1–4)**
-
-Do not build anything new. Find 3 companies manually and offer a 30-day pilot at $149/month (founding customer price). Goal: paying commitment + honest feedback.
-
-Where to find them:
-- Product Hunt launches (last 90 days, tagged "Developer Tools" or "API")
-- YC current and last 2 batches — devtool companies
-- Indie Hackers "Show IH" posts where the product is a dev-tool
-- Twitter/X: search `"we just launched our API"` or `"our SDK is live"` by founders in the last 30 days
-
-**Pitch (DM or cold email):**
-> "I built a tool that finds developers on GitHub who are actively building with [their SDK/framework] and sends them personalized cold emails on your behalf. Looking for 3 early customers to pilot it for $149/month. Want a demo?"
-
-**Step 2: Scale to 10 clients (months 2–4)**
-
-**Channel 1: Use Ghostline on itself.** Find devtool founders on GitHub. Send personalized emails referencing their actual repo. Your pitch: "I used my own tool to find you — here's what Ghostline surfaced about your project. Want to see it in action for your company?" This is the most credible GTM motion and a live product demo in every email.
-
-**Channel 2: Hacker News Show HN.** Once you have 3+ clients with measurable results (reply rates, demos booked), post a detailed "how I built this" — the GitHub-native outreach angle is genuinely interesting to the HN audience. No pitching; purely educational. Include the technical architecture. HN is the single highest-leverage channel for developer tools.
-
-**Channel 3: Indie Hackers.** Post monthly progress updates: "Month 1: 0 clients. Month 2: 3 clients at $149. Here's what worked." The IH audience includes devtool founders who are your exact ICP.
-
-**Channel 4: Product Hunt.** Launch once you have a working dashboard. Time for mid-week. Coordinate with early clients for initial upvotes. Aim for #3–5 in Developer Tools.
-
-**Channel 5: Content.** One blog post per month on topics devtool founders search for:
-- "How to find developers using your SDK on GitHub"
-- "Cold email to developers: what actually works (with data)"
-- "GitHub API for lead generation: a practical guide"
-
-These compound over time. Low volume at first, free forever.
-
-### Pricing for GTM
-
-**Founding customer pricing** for first 5 clients: $199/month for Growth (vs. $599 list). 90-day trial. Creates committed early customers and real testimonials. Move to published pricing after 5 paying clients.
-
-### Success Metrics
-
-- Leads discovered/month per client
-- Email send rate (sent / discovered)
-- Reply rate (replies / sent) — target 3–8% for cold developer outreach
-- Client MRR by month
-- Churn (first signal usually month 2 if pipeline output is poor)
-
----
-
-## Operational Considerations
-
-### GitHub API Rate Limits
-
-Each discovery run uses ~18 search API calls + ~400 core API calls per 100 leads.
-
-With 10 clients staggered over 10 hours: 10 × 18 = 180 search calls/day = 18/hour, well within 30/min limit. Core API: 10 × 400 = 4,000 calls/day. Fine if staggered; tight if all run simultaneously.
-
-**Solution**: Each client provides their own GitHub PAT (no scopes, public data only). Each token gets its own 5,000 core calls/hour budget. Maintain a pool of 5–10 Ghostline-owned tokens as fallback. At 5 tokens, effective capacity is 25,000 calls/hour.
-
-### Gmail Sending Limits
-
-Gmail SMTP: 500 emails/day per personal account, 2,000/day for Google Workspace. Each client sends ≤20/day — well within limits. Each client uses their own account so there is no shared sending limit.
-
-**Warm-up automation**: Implement a `warm_up_schedule` in `client_configs` that automatically manages the ramp-up (5/day weeks 1–2, 10/day weeks 3–4, 15–20/day week 5+). The pipeline checks this at runtime and applies the correct limit.
-
-**Bounce monitoring**: If a client's bounce rate exceeds 5% in a week, automatically pause their pipeline and alert them.
-
-### Anthropic API Costs
-
-~$0.015 per email at Claude Sonnet pricing.
-
-| Scale | Emails/month | Claude cost |
-|---|---|---|
-| 10 clients × 20/day | 6,000 | ~$90/month |
-| 25 clients × 20/day | 15,000 | ~$225/month |
-
-At $10k MRR: ~$225/month in Claude costs. Gross margin ~97%.
-
-**Recommendation**: Maintain one central Anthropic API key for MVP. Absorb the cost — it's negligible. Revisit at 50+ clients if needed.
+**Practical target**: 10 Growth + 3 Scale clients to cross $10k. Achievable in 6-9 months from first paying client.
 
 ### Estimated Monthly Infrastructure Cost
 
 | Item | Cost |
 |---|---|
 | VPS (Hetzner CX21: 2 vCPU, 4GB RAM) | $6/month |
-| Managed Postgres (Supabase free tier) | $0–10/month |
-| Redis (Upstash free tier) | $0–5/month |
-| Anthropic API (10 clients × 20 emails/day) | ~$90/month |
+| Managed Postgres (Supabase free tier) | $0-10/month |
+| Redis (Upstash free tier) | $0-5/month |
+| Anthropic API (10 clients) | ~$50/month |
 | Vercel (frontend) | $0 |
-| Render (FastAPI backend) | $0–7/month |
-| **Total at 10 clients** | **~$100–120/month** |
+| Domain + email | $10/month |
+| **Total at 10 clients** | **~$70-80/month** |
 
-**Gross margin at $6k MRR: ~98%.**
+**Gross margin at $6k MRR: ~99%.**
 
 ---
 
-## Risks and Mitigations
+## 11. GTM Strategy
 
-| Risk | Mitigation |
+### Positioning
+
+**Tagline**: "Find developers who can actually use your product."
+
+**Positioning statement**: Ghostline is the only outreach platform that reads a developer's code before deciding whether to email them. For B2B companies selling to developers, Ghostline finds leads on GitHub by what they're building, scores each one for genuine product fit, and sends personalized emails referencing their actual project. Only qualified leads get outreach. No spray and pray.
+
+### Growth Strategy
+
+The product is fully self-serve. Growth comes from getting dev-tool founders to the signup page and letting the product sell itself. No sales calls, no demos, no "let's hop on a quick call."
+
+**Channel 1: Use Ghostline on itself.** Configure Ghostline to find dev-tool founders on GitHub who are building products that need outreach to developers. Send them personalized emails referencing their actual product repo. The pitch becomes the demo. This is the most credible GTM motion possible and it costs nothing beyond the existing infrastructure.
+
+**Channel 2: Hacker News Show HN.** Post a detailed "how I built this" once the self-serve product is live. The GitHub-native outreach angle + AI fit scoring is genuinely interesting to the HN audience. Focus on the fit scoring differentiator -- "we read their code before emailing them" is a hook. HN drives sign-ups directly to the self-serve flow.
+
+**Channel 3: Product Hunt.** Launch with the working dashboard and self-serve onboarding. Product Hunt audience skews toward founders and indie hackers -- the exact ICP.
+
+**Channel 4: Content / SEO.** One blog post per month:
+- "How to find developers using your SDK on GitHub"
+- "Why cold email to developers fails (and what works instead)"
+- "We scored 2,000 GitHub leads for fit -- here's what we learned"
+- "The developer outreach playbook: GitHub-native lead gen explained"
+
+These compound over time. The fit scoring angle is unique content that nobody else can write.
+
+**Channel 5: Indie Hackers.** Post monthly progress updates with real numbers (MRR, leads found, reply rates). The IH audience includes devtool founders who are the exact ICP.
+
+### Launch Pricing
+
+**Founding customer pricing** for first 20 signups: 50% off for the first 3 months (auto-applied via Stripe coupon). Creates early traction and testimonials. No commitment required -- the product should retain on its own merits. Move to full pricing after the coupon period.
+
+### Success Metrics
+
+| Metric | Target |
 |---|---|
-| **GitHub API policy changes** | Use authenticated tokens only, stay within rate limits, graceful degradation already built in. Monitor GitHub changelog. |
-| **Gmail deliverability / spam** | Enforce warm-up schedule, monitor bounce rates per client, auto-pause high-bounce clients, recommend Google Workspace for serious senders. |
-| **Solo founder bandwidth at scale** | Automate monitoring aggressively (pipeline digest emails, error alerts on exception). Hire part-time client success contractor at $5k+ MRR. |
-| **Client churn from poor lead quality** | Set expectations at onboarding (3–8% reply rates are normal). Show dry-run sample before client pays. Offer month-1 satisfaction credit if <50 leads + <30 emails sent. |
-| **Anthropic API dependency** | `email_generator.py` is cleanly isolated. Abstract the LLM call behind an `LLMProvider` interface now — OpenAI or other providers are a drop-in replacement. |
-| **Competition from Apollo, Reo.dev** | The moat is GitHub-native discovery + README-level personalization + per-client ICP tailoring. Position explicitly against "generic outreach databases." |
+| Leads discovered/month per client | 200+ (Starter), 400+ (Growth) |
+| Fit score 3+ rate | 20-40% of discovered leads |
+| Email send rate (sent / qualified leads) | 80%+ |
+| Reply rate (replies / sent) | 3-8% (cold developer outreach benchmark) |
+| Client MRR by month | Growing |
+| Monthly churn | <5% |
 
 ---
 
-## Phased Roadmap
+## 12. Phased Roadmap
 
-### Phase 1 — MVP to First Paying Client (Weeks 1–8)
+### Phase 1 -- Self-Serve MVP to First Paying Client (Weeks 1-8)
 
-**Goal**: One paying client, pipeline running reliably without manual babysitting.
+**Goal**: Fully self-serve product live, first paying client signs up and runs pipeline without any Ghostline team involvement.
 
 | Week | Work |
 |---|---|
-| 1–2 | Deploy codebase to VPS. Set up Postgres. Create `clients` and `client_configs` tables. Implement `ClientConfig` dataclass with Fernet encryption for sensitive fields. |
-| 3–4 | Parameterize pipeline: refactor `discover.py`, `email_generator.py`, `outreach_graph.py` to accept `ClientConfig`. Add `client_config` to `OutreachState`. |
-| 5 | Implement Celery + Redis scheduler. Create `run_pipeline_for_client(client_id)` task. Set up staggered daily schedule. |
-| 6–7 | Sign first client. Run assisted onboarding. Configure their `ClientConfig` in the database. Run dry-run, share results. Enable live pipeline. |
-| 8 | Monitor first client's pipeline for one full week. Fix bugs. Document manual onboarding process. |
+| 1-2 | Deploy codebase to VPS. Set up Postgres with schema from Section 9. Implement `ClientConfig` dataclass with Fernet encryption. Set up Stripe with pricing tiers and checkout flow. |
+| 2-3 | **AI generation layer**: Build query generation metaprompt + function. Build rubric generation metaprompt + function. Build email prompt generation function. Test all three with Chox as the reference client (output should match current hardcoded config). |
+| 3-4 | **Pipeline parameterization**: Refactor `discover.py` to accept `ClientConfig`. Refactor `GitHubClient` to accept token parameter. Refactor `email_generator.py` to build system prompt dynamically. Refactor `score_leads.py` to use per-client rubric. Add `client_config` to `OutreachState`. |
+| 4-5 | **Dashboard + self-serve onboarding**: Next.js + FastAPI + Clerk auth. Build the full onboarding wizard: product context form → AI generation preview → dry run → credential input with live validation → go live. Build core dashboard pages: leads table, email review queue, pipeline stats, settings. |
+| 5-6 | **Scheduling + auto-send**: Implement Celery + Redis scheduler. Create `run_pipeline_for_client(client_id)` task with all stages: discover, score, generate emails, auto-send after 24 hours. Implement warm-up pacing. Implement auto-pause on high bounce rate. |
+| 6-7 | **Onboard Chox as Client 0**: Run the full self-serve flow for Chox. Verify that AI-generated queries, rubric, and email prompt produce equivalent results to the current hardcoded versions. Fix any issues in the onboarding flow. |
+| 7-8 | **Marketing site + launch**: Build landing page with pricing. Set up founding customer coupon in Stripe. Use Ghostline on itself to find first clients (dev-tool founders on GitHub). Go live. |
 
----
+### Phase 2 -- Scale to $10k MRR (Months 3-6)
 
-### Phase 2 — Scale to $10k MRR (Months 3–9)
-
-**Goal**: 15–20 paying clients, mostly self-running, basic web dashboard.
+**Goal**: 15-20 paying clients, all self-serve, no manual intervention.
 
 | Month | Work |
 |---|---|
-| 3–4 | Dashboard v1: Next.js + FastAPI + Clerk auth. Leads table, pipeline run history, emails sent log. Per-run stats to `pipeline_runs` table. Dual-write leads to Postgres + Google Sheets. Web-based email review UI replacing terminal CLI. |
-| 4–5 | Stripe Checkout integration. Partial self-serve onboarding wizard: ICP form, query preview, credential input, email context draft, auto-provisioning on successful payment. |
-| 5–7 | Show HN post once you have 3+ clients with measurable results. Product Hunt launch. Begin cold outreach to YC devtool companies using Ghostline itself. 1 blog post/month. |
-| 7–9 | Follow-up sequences (2-touch: initial + 1 follow-up after 5 days if no reply). Slack digest per client (weekly send summary via webhook). A/B prompt testing (2 email context variants, Ghostline alternates and reports performance). |
+| 3 | **GTM push**: Show HN post. Product Hunt launch. Ghostline outreach to dev-tool companies. 1 blog post/month. |
+| 3-4 | **Follow-up sequences**: 2-touch sequence (initial + 1 follow-up after 5 days if no reply). A/B email prompt testing (2 variants, system alternates and reports open/reply rates). |
+| 4-5 | **Operational hardening**: Automated bounce rate monitoring with auto-pause. Automated weekly digest emails per client. Error alerting (pipeline failures, SMTP issues). Pipeline retry logic. |
+| 5-6 | **Multi-campaign UI**: Allow Growth/Scale clients to create multiple campaigns from the dashboard (different ICPs, different query sets, different rubrics). |
 
----
+### Phase 3 -- Growth (Month 6+)
 
-### Phase 3 — Growth (Month 9+, if going full-time)
+**Goal**: $25k+ MRR, product-led growth, zero manual work.
 
-**Goal**: $25k+ MRR, first hire, product-led growth.
-
-- Fully automated self-serve onboarding including Claude-generated queries from ICP description
-- Public marketing site and pricing page
-- Client case studies (reply rates, demos booked, closed deals attributed to Ghostline)
-- API access for Scale clients: programmatic lead export, webhook on new leads
-- CRM integrations (HubSpot, Pipedrive): new leads pushed directly to client's CRM
-- Multi-channel outreach: LinkedIn DM as optional additional channel
-- First hire: part-time customer success contractor for onboarding and client communication
+- Reply tracking and response analytics in dashboard
+- CRM integrations (HubSpot, Pipedrive): push qualified leads directly
+- API access for Scale clients: programmatic lead export, webhooks on new qualified leads
+- Public marketing site with case studies and concrete metrics (reply rates, demos booked)
+- Quarterly auto-refresh: system re-generates queries and rubric using latest GitHub trends (Scale tier)
+- **Platform expansion**: npm/PyPI signal integration as a second discovery source
 - White-label offering for developer marketing agencies
+- Referral program: clients get 1 month free for each referral that converts
 
 ---
 
-## Immediate Next Steps (This Week)
+## 13. Risks & Mitigations
 
-In priority order — validate before building:
-
-1. **Find first client informally** (pre-product, pilot pricing) — validate that anyone will pay before writing more code
-2. **Deploy existing codebase to a VPS** — get infrastructure running
-3. **Create `ClientConfig` dataclass and database tables** — foundational multi-tenancy change
-4. **Parameterize `discover.py`, `email_generator.py`, `outreach_graph.py`** — core pipeline refactor
-5. **Set up the scheduler** — first client's pipeline runs daily without you touching it
-6. **Run first client through a full cycle** — find real bugs, tune for their ICP
-7. **Charge them**
-
-Everything else — dashboard, self-serve onboarding, Stripe, full web app — comes after you have a repeatable manual process working for 3 clients.
+| Risk | Severity | Mitigation |
+|---|---|---|
+| **GitHub API policy changes** | High | Use authenticated tokens only, stay within rate limits, each client provides their own PAT (public data only, no scopes). Monitor GitHub changelog. Graceful degradation already built in. If GitHub restricts search API, the code search and repo content APIs are harder to restrict since they serve core GitHub functionality. |
+| **Gmail deliverability / spam** | High | Enforce warm-up schedule automatically. Monitor bounce rates per client with auto-pause at 5% weekly bounce rate. Recommend Google Workspace for serious senders. Fit scoring is the primary mitigation -- higher relevance means lower spam reports. |
+| **AI-generated rubrics produce poor scoring** | Medium | The dry-run step during onboarding shows the client 5 scored leads before they go live -- they can see if the rubric makes sense. Allow rubric editing in the dashboard. Monitor qualified-lead rate per client automatically (if <10% or >80% of leads score 3+, send the client an alert suggesting they refine their fit criteria). Keep the Chox rubric as a gold-standard reference for AI generation. |
+| **AI-generated queries return irrelevant repos** | Medium | The AI generation preview during onboarding shows the client sample repos from each query before they go live. Allow query editing in the dashboard. Quarterly auto-refresh for Scale tier clients. Clients can manually trigger a query re-generation from the dashboard at any time. |
+| **Two-person team bandwidth at scale** | Low | Product is fully self-serve -- no onboarding calls, no manual email review, no manual client setup. Automate monitoring aggressively (pipeline digest emails, error alerts on exception). Team time goes to product improvement and GTM, not client servicing. |
+| **Client churn from poor lead quality** | Medium | Dry-run during onboarding shows real results before the client commits. Dashboard shows expected benchmarks inline (3-8% reply rates are normal for cold developer outreach). Offer month-1 satisfaction credit if pipeline underdelivers (<50 leads scored 3+ or <30 emails sent). Fit scoring is the structural defense -- if leads are truly relevant, clients stay. |
+| **Anthropic API dependency** | Low | `email_generator.py` and `score_leads.py` both isolate the LLM call behind a clean function boundary. Switching to OpenAI or another provider is a 1-hour change per module. Keep the option open but do not over-abstract now. |
+| **Competition from Reo.dev / Common Room** | Low | They serve enterprise ($15k+/year contracts). Ghostline serves SMB ($299-1,199/month). They provide signal intelligence. Ghostline provides end-to-end outreach. Different products for different markets. If they move downmarket, the fit scoring system and GitHub-native personalization are hard to replicate because they require per-client AI configuration that scales with human judgment, not just data aggregation. |
+| **GitHub rate limiting across many clients** | Low | Each client provides their own PAT. Each PAT gets its own 5,000 core calls/hour and 30 search calls/minute. At 20 clients with staggered schedules, there is no shared bottleneck. Maintain 3-5 Ghostline-owned fallback tokens for clients who do not provide their own. |
 
 ---
 
-*Generated: 2026-03-19*
+## 14. Immediate Next Steps (This Week)
+
+In priority order:
+
+1. **Deploy existing codebase to VPS** -- get infrastructure running on Hetzner. Set up Postgres with the schema from Section 9.
+2. **Build AI generation layer** -- query generation, rubric generation, and email prompt generation functions. Test against Chox as reference. This is the highest-leverage new code because it unlocks generalization.
+3. **Create `ClientConfig` dataclass + Fernet encryption** -- foundational multi-tenancy.
+4. **Parameterize pipeline modules** -- refactor `discover.py`, `score_leads.py`, `email_generator.py`, `github_client.py` to accept `ClientConfig`.
+5. **Build self-serve onboarding flow** -- Stripe Checkout → Clerk auth → product context form → AI generation preview → dry run → credential input → go live. This is the product. No admin CLI, no manual setup.
+6. **Build dashboard** -- leads table, email queue with auto-send, pipeline stats, settings. Clients need to be able to see what's happening without contacting you.
+7. **Set up Celery scheduler + auto-send** -- automated daily runs per client, 24-hour auto-send on email queue.
+8. **Onboard Chox as Client 0** -- full self-serve flow end-to-end.
+9. **Marketing site + launch** -- landing page, pricing, Stripe coupon for founding customers. Use Ghostline on itself to find dev-tool founders. Go live.
+
+The dashboard and self-serve onboarding are not "Phase 2" -- they ARE the product. Ship them before accepting any clients.
+
+---
+
+### Key Files to Refactor
+
+| File | Change |
+|---|---|
+| `shared/config.py` | Extract all hardcoded globals into `ClientConfig` dataclass that loads from Postgres |
+| `score_leads.py` | `SYSTEM_PROMPT` becomes per-client `scoring_rubric` loaded from `client_configs`; core scoring loop becomes reusable function accepting `ClientConfig` |
+| `outreach/email_generator.py` | Replace hardcoded `CHOX_CONTEXT.md` load with dynamic prompt construction from `config.email_context_doc` |
+| `discovery/github_client.py` | `__init__` accepts `github_token` parameter instead of reading from global config |
+| `discovery/discover.py` | `discover_repos()` accepts `ClientConfig`, iterates over `config.search_queries` |
+| `outreach/outreach_graph.py` | Add `client_config` to `OutreachState`; all nodes read from state |
+| `outreach/outreach_state.py` | Add `client_config` field to `OutreachState` TypedDict |
+
+---
+
+*Generated: 2026-03-23*

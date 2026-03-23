@@ -108,7 +108,7 @@ Respond with ONLY valid JSON in this exact format, nothing else:
 {"score": <1-5>, "reason": "<one concise sentence explaining the score>"}"""
 
 
-def score_lead(client: anthropic.Anthropic, lead: dict, readme: str) -> tuple[int, str]:
+def score_lead(client: anthropic.Anthropic, lead: dict, readme: str, model: str = MODEL) -> tuple[int, str]:
     """Score a single lead against the Chox ICP. Returns (score, reason)."""
     relevant = {
         "repo_name": lead.get("repo_name", ""),
@@ -123,7 +123,7 @@ def score_lead(client: anthropic.Anthropic, lead: dict, readme: str) -> tuple[in
     }
 
     response = client.messages.create(
-        model=MODEL,
+        model=model,
         max_tokens=150,
         system=SYSTEM_PROMPT,
         messages=[
@@ -195,7 +195,18 @@ def main() -> None:
         "--limit",
         type=int,
         default=None,
-        help="Max number of unscored leads to process this run (default: all)",
+        help="Max number of leads to process this run (default: all)",
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=MODEL,
+        help=f"Claude model to use for scoring (default: {MODEL})",
+    )
+    parser.add_argument(
+        "--compare",
+        action="store_true",
+        help="Re-score already-scored leads with --model and print comparison. Does not write to sheet.",
     )
     args = parser.parse_args()
 
@@ -230,23 +241,40 @@ def main() -> None:
     reason_col_letter = col_num_to_letter(fit_reason_col)
     score_col_i = fit_score_col - 1  # 0-based index into row
 
-    # Find unscored rows (sheet row index is 2-based: row 1 = headers)
+    # Find target rows depending on mode
     unscored = []
     for row_idx, row in enumerate(rows, start=2):
         padded = row + [""] * max(0, len(headers) - len(row))
-        if not padded[score_col_i].strip():
-            lead_dict = dict(zip(headers, padded))
-            lead_dict["_row_idx"] = row_idx
-            unscored.append(lead_dict)
+        existing_score = padded[score_col_i].strip()
+        lead_dict = dict(zip(headers, padded))
+        lead_dict["_row_idx"] = row_idx
+        if args.compare:
+            # Compare mode: only re-score leads that already have a Haiku score
+            if existing_score:
+                lead_dict["_existing_score"] = existing_score
+                lead_dict["_existing_reason"] = padded[fit_reason_col - 1].strip()
+                unscored.append(lead_dict)
+        else:
+            if not existing_score:
+                unscored.append(lead_dict)
 
-    logger.info("Unscored leads: %d", len(unscored))
+    if args.compare:
+        logger.info("Compare mode: %d scored leads available for re-scoring.", len(unscored))
+    else:
+        logger.info("Unscored leads: %d", len(unscored))
 
     if not unscored:
-        logger.info("All leads already scored.")
+        logger.info("All leads already scored." if not args.compare else "No scored leads found to compare.")
         return
 
     to_score = unscored[: args.limit] if args.limit else unscored
-    logger.info("Scoring %d leads with Claude Haiku (%s)...", len(to_score), MODEL)
+    active_model = args.model
+    logger.info(
+        "%s %d leads with %s...",
+        "Comparing" if args.compare else "Scoring",
+        len(to_score),
+        active_model,
+    )
 
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     github = GitHubClient()
@@ -263,13 +291,25 @@ def main() -> None:
                 readme = fetch_readme(lead, github)
                 if readme:
                     readme = readme[:README_MAX_CHARS]
-                score, reason = score_lead(client, lead, readme)
-                logger.info(
-                    "[%d/%d] %-30s → %d/5: %s",
-                    i, len(to_score), username, score, reason[:80],
-                )
-                batch.append({"range": f"{score_col_letter}{row_idx}", "values": [[score]]})
-                batch.append({"range": f"{reason_col_letter}{row_idx}", "values": [[reason]]})
+                score, reason = score_lead(client, lead, readme, model=active_model)
+
+                if args.compare:
+                    old_score = lead.get("_existing_score", "?")
+                    old_reason = lead.get("_existing_reason", "")
+                    match = "✓ AGREE" if str(score) == str(old_score) else "✗ DIFFER"
+                    print(
+                        f"\n[{i}/{len(to_score)}] {username}\n"
+                        f"  Haiku : {old_score}/5 — {old_reason[:100]}\n"
+                        f"  {active_model.split('-')[1].capitalize()}: {score}/5 — {reason[:100]}\n"
+                        f"  {match}"
+                    )
+                else:
+                    logger.info(
+                        "[%d/%d] %-30s → %d/5: %s",
+                        i, len(to_score), username, score, reason[:80],
+                    )
+                    batch.append({"range": f"{score_col_letter}{row_idx}", "values": [[score]]})
+                    batch.append({"range": f"{reason_col_letter}{row_idx}", "values": [[reason]]})
                 scored += 1
             except Exception as exc:
                 logger.error("[%d/%d] %s → EXCEPTION: %s", i, len(to_score), username, exc)
@@ -277,13 +317,14 @@ def main() -> None:
 
             time.sleep(CLAUDE_COOLDOWN)
 
-            if len(batch) >= BATCH_SIZE * 2:  # *2 because each lead adds 2 entries
+            if not args.compare and len(batch) >= BATCH_SIZE * 2:  # *2 because each lead adds 2 entries
                 flush_batch(worksheet, batch, label=f"through row {row_idx}")
                 batch = []
     except KeyboardInterrupt:
         logger.warning("Interrupted — flushing %d buffered scores before exit.", len(batch) // 2)
 
-    flush_batch(worksheet, batch, label="final")
+    if not args.compare:
+        flush_batch(worksheet, batch, label="final")
 
     logger.info(
         "Done. Scored: %d | Errors: %d | Total processed: %d",
