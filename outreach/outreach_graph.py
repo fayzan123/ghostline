@@ -140,15 +140,33 @@ def process_approval(state: OutreachState) -> dict:
     This node runs AFTER the human-in-the-loop interrupt. It receives
     approval_decisions from the resume command — a list of dicts with keys:
       - index: int (position in the drafts list)
-      - action: str ("approve", "reject", "edit")
+      - action: str ("approve", "reject", "edit", "quit")
       - edited_body: str (non-empty only when action == "edit")
 
     Each decision updates the corresponding draft's status field:
       - "approve" -> status = "approved"
       - "reject"  -> status = "rejected"
       - "edit"    -> status = "edited", edited_body set
+      - "quit"    -> entire batch marked pending, nothing sent
     """
     decisions = state.get("approval_decisions", [])
+
+    # Safety guard: if the session was quit (any quit decision present), mark
+    # every draft as pending and return immediately.  Nothing gets sent.
+    # run_outreach.py already exits before reaching this node on quit, but this
+    # ensures zero emails go out even if the graph is resumed via any other path.
+    if any(d.get("action") == "quit" for d in decisions):
+        logger.info(
+            "process_approval: quit detected — marking all drafts pending, "
+            "no emails will be sent."
+        )
+        drafts: list[EmailDraft] = list(state.get("drafts", []))
+        pending_drafts: list[EmailDraft] = [
+            dict(d) | {"status": "pending"}  # type: ignore[misc]
+            for d in drafts
+        ]
+        return {"drafts": pending_drafts}
+
     drafts: list[EmailDraft] = list(state.get("drafts", []))
 
     # Build a lookup for fast access
@@ -178,11 +196,6 @@ def process_approval(state: OutreachState) -> dict:
         elif action == "edit":
             updated["status"] = "edited"
             updated["edited_body"] = decision.get("edited_body", "")
-        elif action == "quit":
-            # User quit the review session — preserve as pending so a --resume
-            # run will re-present these drafts for review rather than silently
-            # rejecting them.
-            updated["status"] = "pending"
         else:
             # "reject" or any unrecognized action
             updated["status"] = "rejected"
@@ -204,8 +217,11 @@ def process_approval(state: OutreachState) -> dict:
 
 
 def send_emails(state: OutreachState) -> dict:
-    """Send approved/edited drafts via Gmail SMTP and update state counts."""
+    """Send approved/edited drafts via Gmail SMTP, or display for manual copy/paste."""
     drafts = state.get("drafts", [])
+
+    if state.get("manual_mode"):
+        return _display_for_manual_send(drafts)
 
     updated_drafts = send_batch(drafts)
 
@@ -222,6 +238,50 @@ def send_emails(state: OutreachState) -> dict:
         "sent_count": sent,
         "failed_count": failed,
         "bounced_count": bounced,
+    }
+
+
+def _display_for_manual_send(drafts: list) -> dict:
+    """Print approved/edited email content for manual copy/paste and mark as sent.
+
+    No SMTP connection is made. Each approved draft is printed clearly, then
+    marked 'sent' so update_sheet records the lead as contacted.
+    """
+    SEP = "=" * 60
+    updated_drafts = [dict(d) for d in drafts]  # shallow copies
+    displayed = 0
+
+    for i, draft in enumerate(updated_drafts):
+        if draft.get("status") not in ("approved", "edited"):
+            continue
+
+        body = draft.get("edited_body") or draft.get("body", "")
+        displayed += 1
+
+        print(f"\n{SEP}")
+        print(f"  EMAIL {displayed}")
+        print(SEP)
+        print(f"  To:      {draft.get('to_name', '')} <{draft.get('to_email', '')}>")
+        print(f"  Subject: {draft.get('subject', '')}")
+        print(SEP)
+        print(body.strip())
+        print(SEP)
+
+        updated_drafts[i]["status"] = "sent"
+
+    if displayed == 0:
+        logger.info("manual mode: no approved drafts to display.")
+    else:
+        print(f"\n  {displayed} email(s) printed above. Copy/paste each one manually.")
+        print(f"  The spreadsheet will be updated to mark these leads as contacted.\n")
+
+    logger.info("manual mode: displayed %d email(s) for manual send.", displayed)
+
+    return {
+        "drafts": updated_drafts,
+        "sent_count": displayed,
+        "failed_count": 0,
+        "bounced_count": 0,
     }
 
 
@@ -292,9 +352,12 @@ def report(state: OutreachState) -> dict:
     print("=" * 54)
     print(f"  Date:     {state.get('run_date', 'unknown')}")
     print(f"  Batch:    {len(drafts)} emails generated")
-    print(f"  Sent:     {sent}")
-    print(f"  Failed:   {failed}")
-    print(f"  Bounced:  {bounced}")
+    if state.get("manual_mode"):
+        print(f"  Displayed for manual send: {sent}")
+    else:
+        print(f"  Sent:     {sent}")
+        print(f"  Failed:   {failed}")
+        print(f"  Bounced:  {bounced}")
     print(f"  Rejected: {rejected}")
     print("=" * 54)
     print()

@@ -44,3 +44,4 @@ class OutreachState(TypedDict):
     daily_send_count: int              # Tracks total sent today (across batches)
     run_date: str                      # ISO date string
     errors: list[str]                  # Accumulated error messages
+    manual_mode: bool                  # If True, display emails for copy/paste instead of sending via SMTP

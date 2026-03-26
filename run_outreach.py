@@ -66,9 +66,20 @@ def _parse_args() -> argparse.Namespace:
         epilog=(
             "Examples:\n"
             "  python run_outreach.py                 # fresh run\n"
+            "  python run_outreach.py --manual        # draft + review, print for copy/paste\n"
             "  python run_outreach.py --dry-run       # review without sending\n"
             "  python run_outreach.py --resume        # resume from checkpoint\n"
             "  python run_outreach.py --batch-size 5  # use 5 leads instead of 10\n"
+        ),
+    )
+    parser.add_argument(
+        "--manual",
+        action="store_true",
+        default=False,
+        help=(
+            "Draft and review emails normally, but instead of sending via SMTP, "
+            "print each approved email to the terminal for manual copy/paste. "
+            "The sheet is still updated to mark leads as contacted."
         ),
     )
     parser.add_argument(
@@ -129,7 +140,7 @@ def _warn_if_outside_business_hours() -> None:
 # Initial state factory
 # ---------------------------------------------------------------------------
 
-def _initial_state(batch_size_override: int | None = None) -> dict:
+def _initial_state(batch_size_override: int | None = None, manual_mode: bool = False) -> dict:
     """Return a clean OutreachState dict with all fields at zero values.
 
     If batch_size_override is provided it is stored in the state via an
@@ -150,6 +161,7 @@ def _initial_state(batch_size_override: int | None = None) -> dict:
         "daily_send_count": 0,
         "run_date": date.today().isoformat(),
         "errors": [],
+        "manual_mode": manual_mode,
     }
 
 
@@ -293,7 +305,8 @@ def main() -> None:
             snapshot = state_snapshot.values
         else:
             initial_state = _initial_state(
-                batch_size_override=args.batch_size
+                batch_size_override=args.batch_size,
+                manual_mode=args.manual,
             )
             logger.info(
                 "Starting fresh run for %s (batch_size=%d).",
