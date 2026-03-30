@@ -121,14 +121,7 @@ def load_uncontacted_leads() -> list[dict]:
         len(actionable),
     )
 
-    # Sort descending by lead_score; non-numeric scores sort to the bottom.
-    def _score(lead: dict) -> float:
-        try:
-            return float(lead.get("lead_score", 0) or 0)
-        except (ValueError, TypeError):
-            return 0.0
-
-    actionable.sort(key=_score, reverse=True)
+    # Preserve spreadsheet row order (top-to-bottom).
     return actionable
 
 
