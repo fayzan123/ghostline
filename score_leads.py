@@ -28,6 +28,21 @@ from outreach.readme_fetcher import fetch_readme
 
 load_dotenv()
 
+# ---------------------------------------------------------------------------
+# Load CHOX_CONTEXT.md once at import time
+# ---------------------------------------------------------------------------
+
+_PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+_CHOX_CONTEXT_PATH = os.path.join(_PROJECT_ROOT, "docs", "CHOX_CONTEXT.md")
+
+try:
+    with open(_CHOX_CONTEXT_PATH, "r", encoding="utf-8") as _f:
+        _CHOX_CONTEXT = _f.read()
+except FileNotFoundError:
+    raise RuntimeError(
+        f"Cannot find docs/CHOX_CONTEXT.md at {_CHOX_CONTEXT_PATH}."
+    )
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
@@ -57,18 +72,10 @@ README_MAX_CHARS = 3000 # README chars sent to Claude (more than outreach; scori
 # Chox ICP rubric
 # ---------------------------------------------------------------------------
 
-SYSTEM_PROMPT = """You are a lead qualification specialist for Chox.
+SYSTEM_PROMPT = f"""You are a lead qualification specialist for Chox.
 
-HOW CHOX WORKS:
-Chox is an AI agent governance layer. Developers integrate it via an SDK using guard.wrap(),
-which wraps individual tool functions before they are registered with the agent:
-
-    charge_card = guard.wrap("stripe.create_charge", _charge_card_fn)
-    run_query   = guard.wrap("postgres.execute", _run_query_fn)
-
-The wrapped function behaves identically to the original — but every invocation is logged,
-risk-scored, and evaluated by Chox before execution. Chox intercepts the tool call at the
-point where the agent's decision becomes an API call.
+PRODUCT CONTEXT:
+{_CHOX_CONTEXT}
 
 CRITICAL IMPLEMENTATION REQUIREMENT:
 Chox can ONLY be implemented if the project has real tool functions — raw callables that
@@ -105,7 +112,7 @@ SCORING RUBRIC (1-5):
 1 — No fit: pure RAG/search, no tool functions, tutorial/demo, framework/library, or direct competitor
 
 Respond with ONLY valid JSON in this exact format, nothing else:
-{"score": <1-5>, "reason": "<one concise sentence explaining the score>"}"""
+{{"score": <1-5>, "reason": "<one concise sentence explaining the score>"}}\""""
 
 
 def score_lead(client: anthropic.Anthropic, lead: dict, readme: str, model: str = MODEL) -> tuple[int, str]:

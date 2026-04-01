@@ -1,6 +1,6 @@
 # Chox — Product Context
 
-*This document provides context about what Chox is and what it does. It is intended to be fed to an AI as background context when reasoning about outreach, messaging, or positioning tasks.*
+_This document provides context about what Chox is and what it does. It is intended to be fed to an AI as background context when reasoning about outreach, messaging, or positioning tasks._
 
 ---
 
@@ -47,7 +47,7 @@ When a tool call passes through Chox (via proxy or SDK), the following happens:
 
 3. **Content Inspection** — Optional gates inspect the request body for secrets (API keys, tokens), PII (emails, phone numbers, SSNs), denied keywords, or disallowed URLs. A request containing a raw API key being forwarded to an external service can be flagged before it leaves.
 
-4. **Shadow Verdict** — A verdict (`allow`, `block`, or `escalate`) is generated based on the current policy rules. In shadow mode — the default — this verdict is recorded but does not affect the request. The agent continues normally. The developer can see what *would have been blocked* without any production impact.
+4. **Shadow Verdict** — A verdict (`allow`, `block`, or `escalate`) is generated based on the current policy rules. In shadow mode — the default — this verdict is recorded but does not affect the request. The agent continues normally. The developer can see what _would have been blocked_ without any production impact.
 
 5. **Logging** — Every request is written to the audit log: action type, risk score, shadow verdict, reason string, request/response metadata, caller identity, timestamp. This log is queryable from the dashboard.
 
@@ -61,7 +61,7 @@ Shadow verdicts are Chox's primary differentiator from every observability tool 
 
 The standard problem with AI governance is that nobody wants to turn on enforcement in production. If you misconfigure a rule, you break your agent. So teams observe, worry, and do nothing.
 
-Shadow mode resolves this. Every call gets evaluated against the full policy engine and receives a real verdict — but that verdict is invisible to the agent. The developer watches the dashboard, sees that their agent *would have been blocked* three times last week (and why), inspects those cases, tunes the rules if needed, and only then flips enforcement on. The transition from observation to enforcement happens with full confidence rather than as a gamble.
+Shadow mode resolves this. Every call gets evaluated against the full policy engine and receives a real verdict — but that verdict is invisible to the agent. The developer watches the dashboard, sees that their agent _would have been blocked_ three times last week (and why), inspects those cases, tunes the rules if needed, and only then flips enforcement on. The transition from observation to enforcement happens with full confidence rather than as a gamble.
 
 This is the path from "I want to govern my agents" to "my agents are governed."
 
@@ -71,7 +71,7 @@ This is the path from "I want to govern my agents" to "my agents are governed."
 
 Understanding the boundaries is as important as understanding the capabilities:
 
-- **Not an LLM observability tool.** Chox does not trace prompt inputs/outputs, token counts, or LLM latency. Those are solved problems (LangSmith, Langfuse). Chox governs what the agent *does*, not what the LLM *says*.
+- **Not an LLM observability tool.** Chox does not trace prompt inputs/outputs, token counts, or LLM latency. Those are solved problems (LangSmith, Langfuse). Chox governs what the agent _does_, not what the LLM _says_.
 - **Not an output validator.** Guardrails AI and similar tools validate the text or structured data an LLM produces. Chox operates after the LLM has already decided to call a tool — it governs the action, not the generation.
 - **Not a routing layer.** Chox does not route traffic between agents or orchestrate multi-agent workflows. It sits in the data plane of individual tool calls.
 - **Not platform-locked.** Chox works with any framework that makes HTTP calls or wraps Python/TypeScript functions. It has no dependency on LangChain, OpenAI, or any specific LLM provider.
@@ -96,9 +96,9 @@ Chox ships with a web dashboard at `chox.ai/dashboard`. It provides:
 
 **Primary user:** A developer building an AI agent that touches real external APIs. They are using an agentic framework — LangGraph, LangChain, CrewAI, AutoGen, or a custom pipeline — and their agent has been given tools that can move money, modify databases, send communications, or otherwise create real-world side effects.
 
-**Their problem:** They can see what their LLM is generating (via existing tools) but they cannot see what their agent is *doing* at the action level in a structured, risk-classified way. They have no safe path to enforcement. They are either flying blind in production or blocking progress with manual review.
+**Their problem:** They can see what their LLM is generating (via existing tools) but they cannot see what their agent is _doing_ at the action level in a structured, risk-classified way. They have no safe path to enforcement. They are either flying blind in production or blocking progress with manual review.
 
-**What they get from Chox:** Every tool call classified, scored, and logged with a shadow verdict from day one. A clear, safe path to enforcement when they're ready. Two lines of SDK code or a URL change to get started.
+**What they get from Chox:** Every tool call classified, scored, and logged with a shadow verdict from day one. A clear, safe path to enforcement when they're ready. simple SDK code or a URL change to get started.
 
 **The broader context:** The teams most likely to feel this pain acutely are those operating in environments where a bad agent action has real consequences — financial services (an agent that moves money), healthcare technology (an agent that accesses patient data), developer tooling (an agent that can modify production infrastructure), and any SaaS product where agents are being given write access to customer data.
 
@@ -119,12 +119,12 @@ Chox ships with a web dashboard at `chox.ai/dashboard`. It provides:
 
 The tools developers commonly compare Chox to:
 
-| Tool | What it does | Gap Chox fills |
-|------|-------------|----------------|
-| LangSmith | Traces LLM calls, token usage, prompt I/O | Does not classify actions by risk or block anything |
-| Langfuse | Open-source observability and evals | Does not classify actions by risk or block anything |
-| agentgateway | Routes traffic between agents and MCP servers | No policy engine, no classification, no verdicts |
-| Guardrails AI | Validates LLM text/structured output | Governs LLM outputs, not tool call actions |
+| Tool          | What it does                                  | Gap Chox fills                                      |
+| ------------- | --------------------------------------------- | --------------------------------------------------- |
+| LangSmith     | Traces LLM calls, token usage, prompt I/O     | Does not classify actions by risk or block anything |
+| Langfuse      | Open-source observability and evals           | Does not classify actions by risk or block anything |
+| agentgateway  | Routes traffic between agents and MCP servers | No policy engine, no classification, no verdicts    |
+| Guardrails AI | Validates LLM text/structured output          | Governs LLM outputs, not tool call actions          |
 
 The meaningful distinction: **LangSmith governs what the LLM says. Chox governs what the agent does.**
 
