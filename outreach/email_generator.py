@@ -85,7 +85,7 @@ PRODUCT CONTEXT:
 EMAIL CONSTRAINTS:
 - Maximum 150 words, 5-7 sentences total.
 - Plain text only. No markdown formatting, no bold, no italics, no bullet points, no links (except chox.ai in the sign-off).
-- Do NOT use em dashes. Use commas, periods, or parentheses instead.
+- ABSOLUTELY NO em dashes (—) or double hyphens (--) used as dashes. Replace with commas, periods, or parentheses. This is a hard rule with zero exceptions.
 
 STRUCTURE (three paragraphs):
 - First paragraph: Reference their specific project and what it does (1-2 sentences). Personalize based on what they are building, what frameworks they use, what their agent does. This is the primary personalization vector.
@@ -121,7 +121,7 @@ BANNED WORDS AND PATTERNS (never use any of these):
 - "robust"
 - "seamless"
 - "delighted"
-- em dashes (the -- or \u2014 character used mid-sentence)
+- em dashes (— or --) anywhere in the email. If you use even one em dash, the entire email is rejected.
 
 GREETING RULES:
 - The NAME field may be a real first name (e.g. "Marcus"), a full name (e.g. "Marcus Chen"), a company name, a GitHub username with numbers/underscores, or garbage data.
@@ -331,6 +331,10 @@ def generate_email(
         return _make_failure_draft(lead, lead_index, readme_text, error_msg)
 
     subject, body = parsed
+
+    # --- Strip em dashes (post-processing safety net) ---
+    subject = subject.replace("\u2014", ",").replace("\u2013", ",").replace(" -- ", ", ")
+    body = body.replace("\u2014", ",").replace("\u2013", ",").replace(" -- ", ", ")
 
     # --- Validate subject length ---
     if len(subject) > 80:

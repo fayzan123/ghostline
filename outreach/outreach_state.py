@@ -16,9 +16,8 @@ class EmailDraft(TypedDict):
     body: str
     lead_context: dict                 # Full lead row data for review display
     readme_snippet: str                # First 500 chars of README for review
-    status: Literal["pending", "approved", "rejected", "edited", "sent", "failed", "bounced"]
+    status: Literal["pending", "approved", "rejected", "edited", "sent"]
     edited_body: str                   # Non-empty if human edited the email
-    send_error: str                    # Error message if send failed
 
 
 class OutreachState(TypedDict):
@@ -44,4 +43,3 @@ class OutreachState(TypedDict):
     daily_send_count: int              # Tracks total sent today (across batches)
     run_date: str                      # ISO date string
     errors: list[str]                  # Accumulated error messages
-    manual_mode: bool                  # If True, display emails for copy/paste instead of sending via SMTP

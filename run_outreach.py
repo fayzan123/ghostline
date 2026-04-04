@@ -4,13 +4,13 @@ Ghostline Outreach Agent
 Run: python run_outreach.py [--dry-run] [--batch-size N] [--resume]
 
 Orchestrates the full outreach pipeline:
-  1. Validate critical config (SMTP creds, Anthropic API key)
-  2. Warn if outside business hours
-  3. Build the LangGraph outreach graph
-  4. Invoke (fresh or resumed from checkpoint)
-  5. Collect human review decisions via the terminal CLI
-  6. Resume the graph with decisions injected via Command(update={"approval_decisions": decisions})
-  7. Print a run summary
+  1. Validate critical config (Anthropic API key)
+  2. Build the LangGraph outreach graph
+  3. Invoke (fresh or resumed from checkpoint)
+  4. Collect human review decisions via the terminal CLI
+  5. Resume the graph with decisions injected via Command(update={"approval_decisions": decisions})
+  6. Display approved emails for manual copy/paste sending
+  7. Mark the spreadsheet on completion
 
 Flags:
   --dry-run       Run through review but skip actual sending.  Prints a summary
@@ -36,10 +36,9 @@ logger = logging.getLogger(__name__)
 def _validate_config() -> None:
     """Import outreach_config and let its module-level validation run.
 
-    outreach_config raises RuntimeError at import time if SMTP_USERNAME,
-    SMTP_PASSWORD, or ANTHROPIC_API_KEY are missing.  We catch that here and
-    re-raise as a clean SystemExit so the user sees a readable message rather
-    than a raw traceback.
+    outreach_config raises RuntimeError at import time if ANTHROPIC_API_KEY
+    is missing.  We catch that here and re-raise as a clean SystemExit so
+    the user sees a readable message rather than a raw traceback.
 
     Must be called before build_outreach_graph() or any other outreach import
     that transitively imports outreach_config.
@@ -61,25 +60,14 @@ def _validate_config() -> None:
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Ghostline outreach agent — generate, review, and send emails.",
+        description="Ghostline outreach agent — generate, review, and display emails for manual sending.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Examples:\n"
             "  python run_outreach.py                 # fresh run\n"
-            "  python run_outreach.py --manual        # draft + review, print for copy/paste\n"
-            "  python run_outreach.py --dry-run       # review without sending\n"
+            "  python run_outreach.py --dry-run       # review without marking sheet\n"
             "  python run_outreach.py --resume        # resume from checkpoint\n"
             "  python run_outreach.py --batch-size 5  # use 5 leads instead of 10\n"
-        ),
-    )
-    parser.add_argument(
-        "--manual",
-        action="store_true",
-        default=False,
-        help=(
-            "Draft and review emails normally, but instead of sending via SMTP, "
-            "print each approved email to the terminal for manual copy/paste. "
-            "The sheet is still updated to mark leads as contacted."
         ),
     )
     parser.add_argument(
@@ -111,44 +99,17 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-# ---------------------------------------------------------------------------
-# Business hours warning
-# ---------------------------------------------------------------------------
-
-def _warn_if_outside_business_hours() -> None:
-    """Print a warning if the current local time is outside 9am-5pm weekdays.
-
-    This is advisory only — it never blocks the run.
-    """
-    from outreach.email_sender import is_business_hours
-    from datetime import datetime
-
-    if not is_business_hours():
-        now = datetime.now()
-        weekday_name = now.strftime("%A")
-        time_str = now.strftime("%H:%M")
-        print(
-            f"\n  Warning: current local time is {weekday_name} {time_str}, "
-            "which is outside normal business hours (Mon-Fri 09:00-17:00)."
-        )
-        print(
-            "  Emails sent outside business hours may have lower open rates.\n"
-        )
-
 
 # ---------------------------------------------------------------------------
 # Initial state factory
 # ---------------------------------------------------------------------------
 
-def _initial_state(batch_size_override: int | None = None, manual_mode: bool = False) -> dict:
+def _initial_state(batch_size_override: int | None = None) -> dict:
     """Return a clean OutreachState dict with all fields at zero values.
 
     If batch_size_override is provided it is stored in the state via an
     override to BATCH_SIZE so load_leads slices to the right number.
     """
-    # We do not need to set batch_size in the state itself — load_leads reads
-    # BATCH_SIZE directly from outreach_config.  The override is applied by
-    # patching the module attribute before the graph is built.
     return {
         "leads": [],
         "batch_index": 0,
@@ -161,7 +122,6 @@ def _initial_state(batch_size_override: int | None = None, manual_mode: bool = F
         "daily_send_count": 0,
         "run_date": date.today().isoformat(),
         "errors": [],
-        "manual_mode": manual_mode,
     }
 
 
@@ -251,18 +211,13 @@ def main() -> None:
         outreach_config.BATCH_SIZE = args.batch_size
 
     if args.dry_run:
-        print("\n  [DRY RUN] No emails will be sent.\n")
+        print("\n  [DRY RUN] Emails will be generated and reviewed but not marked in the sheet.\n")
 
     # ------------------------------------------------------------------
-    # STEP 2: Business hours warning
-    # ------------------------------------------------------------------
-    _warn_if_outside_business_hours()
-
-    # ------------------------------------------------------------------
-    # STEP 3: Build the graph
+    # STEP 2: Build the graph
     # ------------------------------------------------------------------
     logger.info("=" * 54)
-    logger.info("STEP 3: BUILD OUTREACH GRAPH")
+    logger.info("STEP 2: BUILD OUTREACH GRAPH")
     logger.info("=" * 54)
 
     graph = build_outreach_graph()
@@ -273,10 +228,10 @@ def main() -> None:
     thread_config = {"configurable": {"thread_id": f"outreach-{today_str}"}}
 
     # ------------------------------------------------------------------
-    # STEP 4: Invoke the graph (fresh or resumed from checkpoint)
+    # STEP 3: Invoke the graph (fresh or resumed from checkpoint)
     # ------------------------------------------------------------------
     logger.info("=" * 54)
-    logger.info("STEP 4: RUN PIPELINE%s", " (RESUME)" if args.resume else "")
+    logger.info("STEP 3: RUN PIPELINE%s", " (RESUME)" if args.resume else "")
     logger.info("=" * 54)
 
     try:
@@ -306,7 +261,6 @@ def main() -> None:
         else:
             initial_state = _initial_state(
                 batch_size_override=args.batch_size,
-                manual_mode=args.manual,
             )
             logger.info(
                 "Starting fresh run for %s (batch_size=%d).",
@@ -323,10 +277,10 @@ def main() -> None:
         sys.exit(0)
 
     # ------------------------------------------------------------------
-    # STEP 5: Collect human review decisions
+    # STEP 4: Collect human review decisions
     # ------------------------------------------------------------------
     logger.info("=" * 54)
-    logger.info("STEP 5: HUMAN REVIEW")
+    logger.info("STEP 4: HUMAN REVIEW")
     logger.info("=" * 54)
 
     drafts = snapshot.get("drafts", [])
@@ -349,18 +303,18 @@ def main() -> None:
         sys.exit(0)
 
     # ------------------------------------------------------------------
-    # STEP 6: Dry-run exit or resume graph with decisions
+    # STEP 5: Dry-run exit or resume graph with decisions
     # ------------------------------------------------------------------
     if args.dry_run:
         _print_dry_run_summary(decisions, drafts)
         print(
             "Dry run complete. "
-            "Re-run without --dry-run to send emails."
+            "Re-run without --dry-run to display emails and update the sheet."
         )
         sys.exit(0)
 
     logger.info("=" * 54)
-    logger.info("STEP 6: RESUME GRAPH WITH DECISIONS")
+    logger.info("STEP 5: RESUME GRAPH WITH DECISIONS")
     logger.info("=" * 54)
 
     approved_count = sum(

@@ -8,8 +8,8 @@ Nodes (in order):
   3. generate_emails  — Call Claude to generate a personalized email per lead.
   4. present_for_review — Print generation summary; review happens in the entry point.
   5. process_approval — Apply human approval decisions to drafts in state.
-  6. send_emails      — Send approved/edited drafts via Gmail SMTP.
-  7. update_sheet     — Write back contacted/bounced/rejected status to Google Sheet.
+  6. display_emails   — Print approved/edited drafts for manual copy/paste sending.
+  7. update_sheet     — Write back contacted status to Google Sheet.
   8. report           — Print a summary of the run to stdout.
 
 The graph compiles with interrupt_before=["process_approval"] so that the
@@ -35,11 +35,9 @@ from outreach.outreach_config import CHECKPOINT_DB
 from outreach.outreach_sheets import (
     load_uncontacted_leads,
     mark_lead_contacted,
-    mark_lead_bounced,
 )
 from outreach.readme_fetcher import fetch_readmes_batch
 from outreach.email_generator import generate_emails_batch
-from outreach.email_sender import send_batch
 from discovery.github_client import GitHubClient
 from shared.sheets import connect_to_sheet
 
@@ -216,37 +214,13 @@ def process_approval(state: OutreachState) -> dict:
     return {"drafts": updated_drafts}
 
 
-def send_emails(state: OutreachState) -> dict:
-    """Send approved/edited drafts via Gmail SMTP, or display for manual copy/paste."""
-    drafts = state.get("drafts", [])
+def display_emails(state: OutreachState) -> dict:
+    """Print approved/edited email content for manual copy/paste sending.
 
-    if state.get("manual_mode"):
-        return _display_for_manual_send(drafts)
-
-    updated_drafts = send_batch(drafts)
-
-    sent = sum(1 for d in updated_drafts if d["status"] == "sent")
-    failed = sum(1 for d in updated_drafts if d["status"] == "failed")
-    bounced = sum(1 for d in updated_drafts if d["status"] == "bounced")
-
-    logger.info(
-        "send_emails: %d sent, %d failed, %d bounced.", sent, failed, bounced
-    )
-
-    return {
-        "drafts": updated_drafts,
-        "sent_count": sent,
-        "failed_count": failed,
-        "bounced_count": bounced,
-    }
-
-
-def _display_for_manual_send(drafts: list) -> dict:
-    """Print approved/edited email content for manual copy/paste and mark as sent.
-
-    No SMTP connection is made. Each approved draft is printed clearly, then
-    marked 'sent' so update_sheet records the lead as contacted.
+    Each approved draft is printed clearly, then marked 'sent' so
+    update_sheet records the lead as contacted.
     """
+    drafts = state.get("drafts", [])
     SEP = "=" * 60
     updated_drafts = [dict(d) for d in drafts]  # shallow copies
     displayed = 0
@@ -270,12 +244,12 @@ def _display_for_manual_send(drafts: list) -> dict:
         updated_drafts[i]["status"] = "sent"
 
     if displayed == 0:
-        logger.info("manual mode: no approved drafts to display.")
+        logger.info("No approved drafts to display.")
     else:
         print(f"\n  {displayed} email(s) printed above. Copy/paste each one manually.")
         print(f"  The spreadsheet will be updated to mark these leads as contacted.\n")
 
-    logger.info("manual mode: displayed %d email(s) for manual send.", displayed)
+    logger.info("display_emails: displayed %d email(s) for manual send.", displayed)
 
     return {
         "drafts": updated_drafts,
@@ -286,12 +260,11 @@ def _display_for_manual_send(drafts: list) -> dict:
 
 
 def update_sheet(state: OutreachState) -> dict:
-    """Write back send results to the Google Sheet.
+    """Write back results to the Google Sheet.
 
     For each draft:
-      - sent    -> mark_lead_contacted (contacted=TRUE, contacted_at, etc.)
-      - bounced -> mark_lead_bounced   (response_status=bounced)
-      - rejected -> note in sheet (optional, for tracking)
+      - sent     -> mark_lead_contacted (contacted=TRUE, contacted_at, etc.)
+      - rejected -> no sheet update
     """
     drafts = state.get("drafts", [])
     errors: list[str] = list(state.get("errors", []))
@@ -318,14 +291,7 @@ def update_sheet(state: OutreachState) -> dict:
                 )
                 mark_lead_contacted(worksheet, sheet_row, notes=notes)
 
-            elif status == "bounced":
-                notes = (
-                    f"bounced: {draft.get('send_error', 'unknown')}"
-                )
-                mark_lead_bounced(worksheet, sheet_row, notes=notes)
-
             elif status == "rejected":
-                # Optionally note the rejection — do not mark as contacted
                 logger.debug(
                     "Row %d rejected in review — no sheet update.", sheet_row
                 )
@@ -341,8 +307,6 @@ def update_sheet(state: OutreachState) -> dict:
 def report(state: OutreachState) -> dict:
     """Print a summary of the run to stdout."""
     sent = state.get("sent_count", 0)
-    failed = state.get("failed_count", 0)
-    bounced = state.get("bounced_count", 0)
     drafts = state.get("drafts", [])
     rejected = sum(1 for d in drafts if d.get("status") == "rejected")
 
@@ -352,12 +316,7 @@ def report(state: OutreachState) -> dict:
     print("=" * 54)
     print(f"  Date:     {state.get('run_date', 'unknown')}")
     print(f"  Batch:    {len(drafts)} emails generated")
-    if state.get("manual_mode"):
-        print(f"  Displayed for manual send: {sent}")
-    else:
-        print(f"  Sent:     {sent}")
-        print(f"  Failed:   {failed}")
-        print(f"  Bounced:  {bounced}")
+    print(f"  Ready to send: {sent}")
     print(f"  Rejected: {rejected}")
     print("=" * 54)
     print()
@@ -386,7 +345,7 @@ def _route_after_load(state: OutreachState) -> str:
 
 
 def _route_after_approval(state: OutreachState) -> str:
-    """Route to send_emails if any drafts are approved/edited, else skip to update_sheet."""
+    """Route to display_emails if any drafts are approved/edited, else skip to update_sheet."""
     drafts = state.get("drafts", [])
     has_sendable = any(
         d.get("status") in ("approved", "edited") for d in drafts
@@ -415,7 +374,7 @@ def build_outreach_graph():
     graph.add_node("generate_emails", generate_emails)
     graph.add_node("present_for_review", present_for_review)
     graph.add_node("process_approval", process_approval)
-    graph.add_node("send_emails", send_emails)
+    graph.add_node("display_emails", display_emails)
     graph.add_node("update_sheet", update_sheet)
     graph.add_node("report", report)
 
@@ -444,13 +403,13 @@ def build_outreach_graph():
         "process_approval",
         _route_after_approval,
         {
-            "has_approved": "send_emails",
+            "has_approved": "display_emails",
             "all_rejected": "update_sheet",
         },
     )
 
     # Linear edges to finish
-    graph.add_edge("send_emails", "update_sheet")
+    graph.add_edge("display_emails", "update_sheet")
     graph.add_edge("update_sheet", "report")
     graph.add_edge("report", END)
 
