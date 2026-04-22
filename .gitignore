@@ -208,7 +208,7 @@ __marimo__/
 
 # Ghostline project-specific
 service_account.json
-runs.log
 logs/
+data/
 *.pyc
 *.pyo

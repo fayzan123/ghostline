@@ -44,7 +44,7 @@ def _validate_config() -> None:
     that transitively imports outreach_config.
     """
     try:
-        import outreach.outreach_config  # noqa: F401 — import for side-effects
+        import outreach.config  # noqa: F401 — import for side-effects
     except RuntimeError as exc:
         print(f"\nConfiguration error: {exc}", file=sys.stderr)
         print(
@@ -189,8 +189,8 @@ def main() -> None:
     _validate_config()
 
     # Late imports — safe to do now that config is validated
-    import outreach.outreach_config as outreach_config
-    from outreach.outreach_graph import build_outreach_graph
+    import outreach.config as outreach_config
+    from outreach.graph import build_outreach_graph
     from outreach.review_cli import review_batch
     from langgraph.types import Command
 

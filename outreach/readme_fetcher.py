@@ -21,7 +21,7 @@ import logging
 from urllib.parse import urlparse
 
 from discovery.github_client import GitHubClient
-from outreach.outreach_config import README_MAX_CHARS
+from outreach.config import README_MAX_CHARS
 
 logger = logging.getLogger(__name__)
 

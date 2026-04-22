@@ -1,6 +1,14 @@
-à# Ghostline
+# Ghostline
 
-Automated GitHub lead generation tool for Chox. Discovers developers actively building with LangChain and LangGraph, extracts their public contact information, scores them against a multi-signal framework, and exports qualified leads to Google Sheets daily.
+Automated GitHub lead generation and outreach tool for [Chox](https://chox.ai). Discovers developers actively building with LangChain and LangGraph, extracts their public contact information, scores them against a multi-signal framework, exports qualified leads to Google Sheets daily, and enables personalized cold email outreach with human review before anything is sent.
+
+## Background — What Is Chox?
+
+Chox is an **AI agent governance layer** — infrastructure that sits between an AI agent and the external APIs it calls (Stripe, databases, Twilio, file systems, etc.). It classifies every tool call by action type and risk, evaluates it against configurable policy rules, and logs a shadow verdict. In shadow mode the verdict is recorded but the call goes through — giving developers visibility into what _would have been blocked_ before they turn enforcement on. When enforcement is enabled, a `block` verdict stops the agent from calling the underlying API entirely.
+
+The meaningful distinction from existing tools: **LangSmith governs what the LLM says. Chox governs what the agent does.**
+
+The ideal Chox customer is a developer using LangGraph, LangChain, CrewAI, or a similar framework to build agents that make real, consequential API calls — moving money, modifying databases, sending messages. Ghostline finds these developers on GitHub.
 
 ## Quick Start
 
@@ -87,7 +95,7 @@ Use the included shell wrapper and cron configuration to run Ghostline automatic
 **Manual run via wrapper:**
 
 ```bash
-./run.sh
+./scripts/run.sh
 ```
 
 This activates the virtual environment, runs the pipeline, and logs output to `logs/run_YYYY-MM-DD.log`.
@@ -96,14 +104,14 @@ This activates the virtual environment, runs the pipeline, and logs output to `l
 
 ```bash
 # Review the cron schedule
-cat cron.txt
+cat scripts/cron.txt
 
 # Install (replaces existing crontab)
-crontab cron.txt
+crontab scripts/cron.txt
 
 # Or merge into existing crontab
 crontab -l > /tmp/existing_cron
-cat cron.txt >> /tmp/existing_cron
+cat scripts/cron.txt >> /tmp/existing_cron
 crontab /tmp/existing_cron
 ```
 
@@ -198,7 +206,7 @@ MAX_EMAILS_PER_DAY = 20  # hard ceiling on sends per calendar day
 **If this is your first week sending**, lower `MAX_EMAILS_PER_DAY` to `5`. Sending 20 cold emails per day from a Gmail account on day one will get you flagged as spam. Ramp up gradually:
 
 | Week | Recommended `MAX_EMAILS_PER_DAY` |
-|------|----------------------------------|
+| ---- | -------------------------------- |
 | 1–2  | 5                                |
 | 3–4  | 10                               |
 | 5+   | 15–20                            |
@@ -224,13 +232,13 @@ What you will see:
 
 In the review terminal, your options for each email are:
 
-| Key | Action |
-|-----|--------|
-| `A` | Approve this email |
-| `R` | Reject this email (lead stays uncontacted, available for the next run) |
+| Key | Action                                                                               |
+| --- | ------------------------------------------------------------------------------------ |
+| `A` | Approve this email                                                                   |
+| `R` | Reject this email (lead stays uncontacted, available for the next run)               |
 | `E` | Edit the email body in `$EDITOR` (defaults to nano), then approve the edited version |
-| `B` | Approve this email and all remaining emails in the batch — no more prompts |
-| `Q` | Quit — saves state to checkpoint, no emails sent, resume later with `--resume` |
+| `B` | Approve this email and all remaining emails in the batch — no more prompts           |
+| `Q` | Quit — saves state to checkpoint, no emails sent, resume later with `--resume`       |
 
 After reviewing, the dry run prints a summary of what **would** have been sent and exits.
 
@@ -281,27 +289,27 @@ python run_outreach.py --dry-run --batch-size 3
 
 ### Outreach environment variables
 
-| Variable | Required | Description | Example |
-|----------|----------|-------------|---------|
-| `SMTP_USERNAME` | Yes | Your Gmail address | `you@gmail.com` |
-| `SMTP_PASSWORD` | Yes | Gmail app password (16 chars, from myaccount.google.com/apppasswords) | `abcd efgh ijkl mnop` |
-| `ANTHROPIC_API_KEY` | Yes | Anthropic API key for Claude | `sk-ant-xxxx` |
-| `SENDER_NAME` | No | Display name in the From header | `Fayzan and Dilraj, Co-founders of Chox` |
-| `SENDER_EMAIL` | No | Reply-To address (defaults to SMTP_USERNAME) | `you@gmail.com` |
+| Variable            | Required | Description                                                           | Example                                  |
+| ------------------- | -------- | --------------------------------------------------------------------- | ---------------------------------------- |
+| `SMTP_USERNAME`     | Yes      | Your Gmail address                                                    | `you@gmail.com`                          |
+| `SMTP_PASSWORD`     | Yes      | Gmail app password (16 chars, from myaccount.google.com/apppasswords) | `abcd efgh ijkl mnop`                    |
+| `ANTHROPIC_API_KEY` | Yes      | Anthropic API key for Claude                                          | `sk-ant-xxxx`                            |
+| `SENDER_NAME`       | No       | Display name in the From header                                       | `Fayzan and Dilraj, Co-founders of Chox` |
+| `SENDER_EMAIL`      | No       | Reply-To address (defaults to SMTP_USERNAME)                          | `you@gmail.com`                          |
 
 ---
 
 ### Outreach troubleshooting
 
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `Missing required environment variable(s)` | `SMTP_USERNAME`, `SMTP_PASSWORD`, or `ANTHROPIC_API_KEY` not set in `.env` | Add the missing variable(s) and re-run |
-| `SMTPAuthenticationError` | App password is wrong or 2FA is not enabled on the Gmail account | Re-generate the app password at myaccount.google.com/apppasswords |
-| `No uncontacted leads available` | All leads in the sheet have already been contacted | Run `python run.py` to discover new leads first |
-| `No checkpoint found for today's thread` | Used `--resume` but no run has been started today | Run without `--resume` to start a fresh pipeline |
-| `ModuleNotFoundError: langgraph` | Dependencies not installed | Run `pip install -r requirements.txt` |
-| Emails generating but all look generic | README fetch failed for most leads (404s) | Check GitHub token is set and valid in `.env` |
-| `Editor 'X' not found` | `$EDITOR` env var points to a binary that does not exist | Run `export EDITOR=nano` before running the agent |
+| Error                                      | Cause                                                                      | Fix                                                               |
+| ------------------------------------------ | -------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `Missing required environment variable(s)` | `SMTP_USERNAME`, `SMTP_PASSWORD`, or `ANTHROPIC_API_KEY` not set in `.env` | Add the missing variable(s) and re-run                            |
+| `SMTPAuthenticationError`                  | App password is wrong or 2FA is not enabled on the Gmail account           | Re-generate the app password at myaccount.google.com/apppasswords |
+| `No uncontacted leads available`           | All leads in the sheet have already been contacted                         | Run `python run.py` to discover new leads first                   |
+| `No checkpoint found for today's thread`   | Used `--resume` but no run has been started today                          | Run without `--resume` to start a fresh pipeline                  |
+| `ModuleNotFoundError: langgraph`           | Dependencies not installed                                                 | Run `pip install -r requirements.txt`                             |
+| Emails generating but all look generic     | README fetch failed for most leads (404s)                                  | Check GitHub token is set and valid in `.env`                     |
+| `Editor 'X' not found`                     | `$EDITOR` env var points to a binary that does not exist                   | Run `export EDITOR=nano` before running the agent                 |
 
 ---
 

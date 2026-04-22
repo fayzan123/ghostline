@@ -20,7 +20,7 @@ load_dotenv()
 ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
 
 # Sender identity (used in email drafts for display purposes)
-SENDER_NAME: str = os.getenv("SENDER_NAME", "Fayzan and Dilraj, Co-founders of Chox")
+SENDER_NAME: str = os.getenv("SENDER_NAME", "Fayzan, Co-founder of Chox")
 
 # ---------------------------------------------------------------------------
 # Fail loudly at import time if critical credentials are missing
@@ -56,4 +56,4 @@ README_MAX_CHARS: int = 2000          # Truncate READMEs to this length
 # LangGraph checkpoint
 # ---------------------------------------------------------------------------
 
-CHECKPOINT_DB: str = "ghostline_outreach.db"
+CHECKPOINT_DB: str = "data/ghostline_outreach.db"

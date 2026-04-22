@@ -7,7 +7,7 @@ import os
 from shared.config import RUN_ID
 
 _LOG_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_RUNS_LOG = os.path.join(_LOG_DIR, "runs.log")
+_RUNS_LOG = os.path.join(_LOG_DIR, "logs", "runs.log")
 
 
 def print_report(stats: dict) -> None:

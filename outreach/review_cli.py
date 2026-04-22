@@ -46,7 +46,7 @@ import termios
 import tty
 from typing import List
 
-from outreach.outreach_state import EmailDraft
+from outreach.state import EmailDraft
 
 
 # ---------------------------------------------------------------------------

@@ -24,14 +24,14 @@ from typing import Optional
 
 import anthropic
 
-from outreach.outreach_config import (
+from outreach.config import (
     ANTHROPIC_API_KEY,
     CLAUDE_MAX_TOKENS,
     CLAUDE_MODEL,
     CLAUDE_TEMPERATURE,
     README_MAX_CHARS,
 )
-from outreach.outreach_state import EmailDraft
+from outreach.state import EmailDraft
 
 # ---------------------------------------------------------------------------
 # Logging

@@ -29,10 +29,10 @@ import sqlite3
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.sqlite import SqliteSaver
 
-from outreach.outreach_state import OutreachState, EmailDraft
-import outreach.outreach_config as outreach_config
-from outreach.outreach_config import CHECKPOINT_DB
-from outreach.outreach_sheets import (
+from outreach.state import OutreachState, EmailDraft
+import outreach.config as outreach_config
+from outreach.config import CHECKPOINT_DB
+from outreach.sheets import (
     load_uncontacted_leads,
     mark_lead_contacted,
 )
