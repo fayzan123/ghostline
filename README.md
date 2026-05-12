@@ -83,7 +83,7 @@ The pipeline runs in seven steps:
 
 1. **Discover** -- Searches GitHub for repositories matching LangChain/LangGraph import patterns across six search queries, paginating up to three pages each.
 2. **Qualify** -- Filters out forks, tutorials, demos, official example repos, and low-signal projects using name/description blocklists and structural heuristics.
-3. **Extract emails** -- For each unique repository owner, runs a four-method email fallback chain: GitHub profile, commit metadata, public events API, and bio regex parsing.
+3. **Extract emails** -- For each unique repository owner, resolves a consent-based public email from two sources only: the user's GitHub profile `email` field and a regex parse of the profile bio. Commit author emails and PushEvent payloads are deliberately not used — they are technically public but most users do not realize their commit email is exposed, and GitHub's Acceptable Use Policy forbids using such data for unsolicited email.
 4. **Score** -- Calculates a 0-100 lead score based on tool use signals, production maturity indicators, social proof, and developer profile signals. Assigns tier-1 (score >= 60) or tier-2 (score >= 30) classification and infers a pain point category.
 5. **Write to Sheets** -- Deduplicates against existing rows and batch-appends new leads to the configured Google Sheet.
 6. **Report** -- Prints a formatted run summary to stdout and appends it to `runs.log`.

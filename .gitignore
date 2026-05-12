@@ -212,3 +212,6 @@ logs/
 data/
 *.pyc
 *.pyo
+# LangGraph checkpoint DB — contains generated email bodies and recipient PII
+*.db
+ghostline_outreach.db

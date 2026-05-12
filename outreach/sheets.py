@@ -107,10 +107,14 @@ def load_uncontacted_leads() -> list[dict]:
             logger.debug("Row %d skipped — already contacted.", sheet_row)
             continue
 
-        # Filter: must not have unsubscribed
+        # Filter: must not be unsubscribed or otherwise suppressed.
+        # suppressed_legacy_source flags leads whose email was extracted from
+        # commit metadata or PushEvents under the old four-method chain.
+        # Those sources violate GitHub's Acceptable Use Policy for unsolicited
+        # email; we keep the rows for record-keeping but never contact them.
         response_status = str(record.get("response_status", "")).strip().lower()
-        if response_status == "unsubscribed":
-            logger.debug("Row %d skipped — unsubscribed.", sheet_row)
+        if response_status in ("unsubscribed", "suppressed_legacy_source"):
+            logger.debug("Row %d skipped — response_status=%s.", sheet_row, response_status)
             continue
 
         record["_sheet_row"] = sheet_row

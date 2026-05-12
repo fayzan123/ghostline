@@ -25,23 +25,9 @@ from dotenv import load_dotenv
 
 from discovery.github_client import GitHubClient
 from outreach.readme_fetcher import fetch_readme
+from shared.chox_context import CHOX_CONTEXT as _CHOX_CONTEXT
 
 load_dotenv()
-
-# ---------------------------------------------------------------------------
-# Load CHOX_CONTEXT.md once at import time
-# ---------------------------------------------------------------------------
-
-_PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-_CHOX_CONTEXT_PATH = os.path.join(_PROJECT_ROOT, "docs", "CHOX_CONTEXT.md")
-
-try:
-    with open(_CHOX_CONTEXT_PATH, "r", encoding="utf-8") as _f:
-        _CHOX_CONTEXT = _f.read()
-except FileNotFoundError:
-    raise RuntimeError(
-        f"Cannot find docs/CHOX_CONTEXT.md at {_CHOX_CONTEXT_PATH}."
-    )
 
 logging.basicConfig(
     level=logging.INFO,

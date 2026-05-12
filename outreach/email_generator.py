@@ -1,8 +1,8 @@
 """
 email_generator.py — Generate personalized cold emails via the Anthropic Claude API.
 
-Loads CHOX_CONTEXT.md once at import time, instantiates a single Anthropic client,
-and exposes two public functions:
+Imports the Chox product context from shared.chox_context, instantiates a
+single Anthropic client, and exposes two public functions:
 
     generate_email(lead, readme_text) -> EmailDraft
     generate_emails_batch(leads_with_readmes) -> list[EmailDraft]
@@ -17,7 +17,6 @@ Batch generation logs progress and never lets a single failure crash the run.
 """
 
 import logging
-import os
 import re
 import time
 from typing import Optional
@@ -32,30 +31,13 @@ from outreach.config import (
     README_MAX_CHARS,
 )
 from outreach.state import EmailDraft
+from shared.chox_context import CHOX_CONTEXT as _CHOX_CONTEXT
 
 # ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
 
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# Load CHOX_CONTEXT.md once at import time
-# ---------------------------------------------------------------------------
-
-_MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
-_PROJECT_ROOT = os.path.dirname(_MODULE_DIR)
-_CHOX_CONTEXT_PATH = os.path.join(_PROJECT_ROOT, "docs", "CHOX_CONTEXT.md")
-
-try:
-    with open(_CHOX_CONTEXT_PATH, "r", encoding="utf-8") as _f:
-        _CHOX_CONTEXT = _f.read()
-except FileNotFoundError:
-    logger.error("CHOX_CONTEXT.md not found at %s", _CHOX_CONTEXT_PATH)
-    raise RuntimeError(
-        f"Cannot find docs/CHOX_CONTEXT.md at {_CHOX_CONTEXT_PATH}. "
-        "This file is required for email generation."
-    )
 
 # ---------------------------------------------------------------------------
 # Anthropic client — instantiated once at module level
