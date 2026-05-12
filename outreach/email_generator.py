@@ -96,8 +96,9 @@ SIGN-OFF (always use this exactly):
 -- Fayzan & Dilraj
 Co-founders, Chox (chox.ai)
 
-FOOTER (always include after the sign-off, separated by a blank line):
-Chox, Inc. | Toronto, ON
+FOOTER (always include after the sign-off, separated by a blank line, exactly as written, no changes):
+Chox, Inc., 123 Main St, Toronto, ON M5V 0A1, Canada
+Reply with "unsubscribe" and we will remove you from any follow-ups.
 
 TONE:
 - Write like a developer talking to a developer, not a marketer.

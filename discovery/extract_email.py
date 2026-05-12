@@ -5,7 +5,6 @@ Ghostline lead generation tool.
 
 import logging
 import re
-from collections import Counter
 
 from discovery.github_client import GitHubClient
 from shared.models import Lead
@@ -13,22 +12,23 @@ from shared.config import INVALID_EMAIL_PATTERNS, EMAIL_REGEX, RUN_ID, IMPORT_TO
 
 logger = logging.getLogger(__name__)
 
-FREEMAIL_DOMAINS = {"gmail.com", "yahoo.com", "hotmail.com", "outlook.com"}
-
 
 def extract_emails(repos: list[dict], client: GitHubClient, existing_users: set) -> list[Lead]:
     """
     For each unique repo owner not already in the sheet, attempt to find a public email.
     Returns partially-filled Lead objects (score/tier/pain_point filled later by score.py).
 
-    Email extraction fallback chain (stop on first valid email):
-        1. GitHub user profile API — check 'email' field
-        2. Repo commit metadata — parse commit.author.email from recent commits
-        3. User public events API — parse PushEvent payload.commits[].author.email
-        4. Profile bio regex — parse 'bio' field for email pattern
+    Email extraction sources (only data the user explicitly chose to make public):
+        1. GitHub user profile API — 'email' field (user set this themselves)
+        2. Profile bio regex — 'bio' field, which the user wrote and published
+
+    We deliberately do NOT scrape commit author emails or PushEvent payloads.
+    Those are technically public but most users do not realize their commit
+    email is exposed, and GitHub's Acceptable Use Policy forbids using such
+    data for unsolicited email. Profile-published emails are consent-based.
 
     All found emails are validated against INVALID_EMAIL_PATTERNS before use.
-    If multiple valid emails found, prefer: profile > most frequent commit email > non-freemail.
+    If both sources yield an email, the profile email wins.
 
     Args:
         repos: List of qualified repo dicts from qualify_repos()
@@ -76,69 +76,25 @@ def extract_emails(repos: list[dict], client: GitHubClient, existing_users: set)
 
 def _process_user(username: str, repo: dict, client: GitHubClient) -> Lead | None:
     """
-    Run the four-method email fallback chain for a single user.
+    Resolve a consent-based public email for a single user.
     Returns a Lead if a valid email is found, otherwise None.
     """
-    # --- Method 1: GitHub user profile ---
     user_profile = client.get_user(username)
     if not user_profile:
         logger.debug("Could not fetch profile for %s, skipping.", username)
         return None
 
-    profile_email = user_profile.get("email")
-    candidate_emails: dict[str, str] = {}  # email -> source
-    commit_email_counter: Counter = Counter()
-
-    if profile_email and is_valid_email(profile_email):
-        candidate_emails[profile_email] = "profile"
-
-    # --- Method 2: Commit metadata from best repo (skip if profile email found) ---
-    if not candidate_emails:
-        repo_full_name = repo.get("full_name", "")
-        if "/" in repo_full_name:
-            owner_name, repo_name = repo_full_name.split("/", 1)
-        else:
-            owner_name = username
-            repo_name = repo.get("name", "")
-
-        if repo_name:
-            commits = client.get_commits(owner_name, repo_name, username)
-            for commit_obj in commits:
-                commit_data = commit_obj.get("commit", {})
-                for field_key in ("author", "committer"):
-                    email = commit_data.get(field_key, {}).get("email")
-                    if email and is_valid_email(email):
-                        commit_email_counter[email] += 1
-                        if email not in candidate_emails:
-                            candidate_emails[email] = "commits"
-
-    # --- Method 3: User public events (skip if we already have a candidate) ---
-    if not candidate_emails:
-        events = client.get_user_events(username)
-        for event in events:
-            if event.get("type") != "PushEvent":
-                continue
-            payload_commits = event.get("payload", {}).get("commits", [])
-            for pc in payload_commits:
-                email = pc.get("author", {}).get("email")
-                if email and is_valid_email(email):
-                    commit_email_counter[email] += 1
-                    if email not in candidate_emails:
-                        candidate_emails[email] = "events"
-
-    # --- Method 4: Bio regex ---
     bio = user_profile.get("bio") or ""
-    bio_email = extract_email_from_bio(bio)
-    if bio_email and bio_email not in candidate_emails:
-        candidate_emails[bio_email] = "bio"
 
-    # --- Pick the best email ---
-    if not candidate_emails:
-        return None
-
-    best_email, best_source = _pick_best_email(candidate_emails, commit_email_counter)
-    if not best_email:
-        return None
+    profile_email = user_profile.get("email")
+    if profile_email and is_valid_email(profile_email):
+        best_email, best_source = profile_email, "profile"
+    else:
+        bio_email = extract_email_from_bio(bio)
+        if bio_email:
+            best_email, best_source = bio_email, "bio"
+        else:
+            return None
 
     # --- Build Lead ---
     description_raw = repo.get("description") or ""
@@ -183,54 +139,6 @@ def _process_user(username: str, repo: dict, client: GitHubClient) -> Lead | Non
         risk_apis_detected=", ".join(risk_apis),
         run_id=RUN_ID,
     )
-
-
-def _pick_best_email(
-    candidate_emails: dict[str, str],
-    commit_email_counter: Counter,
-) -> tuple[str, str]:
-    """
-    From collected candidate emails, pick the best one using the preference order:
-      1. Profile email (user explicitly chose to make it public)
-      2. Most frequently occurring email across commits
-      3. Non-freemail addresses over freemail
-    Returns (email, source) tuple, or ("", "") if nothing qualifies.
-    """
-    # Preference 1: profile email
-    for email, source in candidate_emails.items():
-        if source == "profile":
-            return email, source
-
-    # Preference 2: most frequent commit email
-    # Filter commit_email_counter to only valid candidates
-    commit_candidates = {
-        e: count for e, count in commit_email_counter.items() if e in candidate_emails
-    }
-    if commit_candidates:
-        # Sort by frequency descending, then prefer non-freemail as tiebreaker
-        sorted_commits = sorted(
-            commit_candidates.items(),
-            key=lambda x: (x[1], _is_not_freemail(x[0])),
-            reverse=True,
-        )
-        best_commit_email = sorted_commits[0][0]
-        return best_commit_email, candidate_emails[best_commit_email]
-
-    # Preference 3: non-freemail over freemail among remaining candidates
-    non_free = [e for e in candidate_emails if _is_not_freemail(e)]
-    if non_free:
-        email = non_free[0]
-        return email, candidate_emails[email]
-
-    # Fallback: return whichever email we have
-    email = next(iter(candidate_emails))
-    return email, candidate_emails[email]
-
-
-def _is_not_freemail(email: str) -> bool:
-    """Return True if the email domain is NOT a common freemail provider."""
-    domain = email.rsplit("@", 1)[-1].lower() if "@" in email else ""
-    return domain not in FREEMAIL_DOMAINS
 
 
 def is_valid_email(email: str) -> bool:
